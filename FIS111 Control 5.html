@@ -1,0 +1,1806 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>FIS111 Control 5</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap">
+<style>
+/* Layout: a single "video player" — 1280x720 stage scaled to fit, captions + chapters below. Single deliberate dark look. */
+:root{
+  --bg:#060608; --bg2:#0d0d12; --bg3:#15151c; --grid:rgba(190,185,255,.05);
+  --line:#7d7b88; --line2:#44434d; --ink:#eeedf3; --dim:#9a98a6; --faint:#5e5c68;
+  --acc:#b48cff; --acc-soft:rgba(180,140,255,.12);
+  --peso:#57d4c2; --normal:#eeedf3; --roce:#ff6b7d; --ten:#b48cff; --ela:#f4b55c; --acel:#ff8fd0; --vel:#8fc7ff;
+  --K:#b48cff; --Ug:#57d4c2; --Ue:#f4b55c; --mom:#f4b55c; --imp:#ff8fd0; --A:#8fc7ff; --B:#ff6b7d; --C:#57d4c2;
+  --f-disp:'Archivo',ui-sans-serif,system-ui,sans-serif;
+  --f-body:'Figtree',ui-sans-serif,system-ui,sans-serif;
+  --f-math:'STIX Two Text','Cambria Math',Cambria,Georgia,serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--f-body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.top .kick{font-family:var(--f-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.top h1{font-family:var(--f-disp);font-stretch:112%;font-weight:800;font-size:clamp(22px,3.2vw,32px);letter-spacing:-.01em;margin:4px 0 0;text-wrap:balance}
+.top p{margin:0;color:var(--dim);font-size:14px;font-family:var(--f-mono)}
+
+#player{background:#000;border-radius:14px;overflow:hidden;border:1px solid #1c1b23;position:relative}
+#player:fullscreen{border-radius:0;border:0;display:flex;flex-direction:column;justify-content:center;background:#000}
+#frame{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:var(--bg);margin:0 auto;max-width:100%}
+#stage{position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0;overflow:hidden;
+  background:
+    radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 35%,rgba(0,0,0,.78) 100%),
+    linear-gradient(var(--grid) 2px,transparent 2px) 0 0/80px 80px,
+    linear-gradient(90deg,var(--grid) 2px,transparent 2px) 0 0/80px 80px,
+    var(--bg);
+  animation:drift 90s linear infinite}
+@keyframes drift{to{background-position:0 0,0 80px,80px 0,0 0}}
+.mark{position:absolute;right:26px;bottom:20px;font-family:var(--f-mono);font-size:15px;letter-spacing:.12em;color:var(--faint);z-index:5}
+
+#big{position:absolute;inset:0;margin:auto;width:116px;height:116px;border-radius:50%;border:2px solid var(--acc);background:rgba(10,8,16,.75);color:var(--ink);cursor:pointer;display:grid;place-items:center;z-index:6;box-shadow:0 0 60px rgba(180,140,255,.35);transition:transform .2s}
+#big:hover{transform:scale(1.06)}
+#big svg{width:44px;height:44px;margin-left:6px}
+#resume{position:absolute;left:50%;bottom:18px;translate:-50% 0;z-index:7;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+#resume button{font:600 14px var(--f-body);color:var(--ink);background:rgba(20,18,28,.92);border:1px solid var(--acc);border-radius:999px;padding:8px 14px;cursor:pointer}
+#resume button+button{border-color:#2d2c36;color:var(--dim)}
+
+#ctl{display:flex;flex-direction:column;gap:6px;padding:10px 12px 10px;background:#000}
+#bar{position:relative;height:20px;cursor:pointer;touch-action:none;outline:none}
+#bar .tr{position:absolute;left:0;right:0;top:8px;height:4px;background:#2a2932;border-radius:2px}
+#bar .fill{position:absolute;left:0;top:8px;height:4px;background:var(--acc);border-radius:2px;width:0}
+#bar .knob{position:absolute;top:4px;width:12px;height:12px;border-radius:50%;background:#fff;translate:-50% 0;left:0;box-shadow:0 0 0 3px rgba(180,140,255,.35)}
+#bar .tick{position:absolute;top:8px;width:3px;height:4px;background:#000;translate:-50% 0}
+#bar:focus-visible .tr{outline:2px solid var(--acc);outline-offset:4px}
+#tip{position:absolute;bottom:22px;translate:-50% 0;background:#16151d;border:1px solid #2d2c36;color:var(--ink);font:500 12px var(--f-body);padding:5px 9px;border-radius:7px;white-space:nowrap;pointer-events:none}
+.row{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+button.ic{background:none;border:0;color:var(--ink);width:40px;height:36px;border-radius:8px;display:grid;place-items:center;cursor:pointer;padding:0}
+button.ic svg{width:22px;height:22px}
+button.ic:hover{background:#1a1a21}
+button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+#time{font-family:var(--f-mono);font-size:13px;color:var(--dim);margin:0 8px;font-variant-numeric:tabular-nums;white-space:nowrap}
+#chName{font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1 1 120px}
+button.tx{font:600 13px var(--f-mono);color:var(--ink);background:#15151b;border:1px solid #2a2930;border-radius:8px;padding:7px 10px;cursor:pointer;white-space:nowrap}
+button.tx[aria-pressed="true"]{border-color:var(--acc);color:var(--acc)}
+button.tx:disabled{opacity:.45;cursor:not-allowed}
+#cap{padding:16px 20px 18px;background:var(--bg2);border-top:1px solid #1c1b23;min-height:118px}
+#cap .ct{font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);margin-bottom:6px}
+#cap .cx{font-size:clamp(16px,2.1vw,20px);line-height:1.55;color:var(--ink);max-width:78ch;text-wrap:pretty}
+#player:fullscreen #cap{min-height:0}
+
+section h3{font-family:var(--f-disp);font-stretch:110%;font-weight:800;font-size:20px;margin:6px 0 10px}
+.chs{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.chs button{text-align:left;background:var(--bg2);border:1px solid #1d1c25;border-radius:10px;padding:12px 14px;color:var(--ink);cursor:pointer;display:flex;gap:12px;align-items:flex-start;min-width:0}
+.chs button:hover{border-color:#34333e}
+.chs button.on{border-color:var(--acc);background:#120f1b}
+.chs .n{font-family:var(--f-mono);color:var(--faint);font-size:13px;padding-top:2px;font-variant-numeric:tabular-nums}
+.chs .t{font-weight:600;font-size:15px;display:block}
+.chs .s{display:block;color:var(--dim);font-size:13px;margin-top:2px}
+.keys{color:var(--dim);font-size:13px;margin:0}
+kbd,.kb{font-family:var(--f-mono);font-size:.85em;border:1px solid #34333e;border-bottom-width:2px;border-radius:5px;padding:1px 6px;background:#14141a;color:var(--ink)}
+
+.vc{position:relative;display:inline-block}
+.vc::before{content:'';position:absolute;left:12%;right:2%;top:-.06em;height:.08em;background:currentColor;border-radius:1px}
+.vc::after{content:'';position:absolute;right:-.06em;top:-.2em;border-left:.24em solid currentColor;border-top:.14em solid transparent;border-bottom:.14em solid transparent}
+.tagx{position:absolute;font-family:var(--f-mono);font-size:16px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.art .ttl{font-family:var(--f-mono);font-size:18px;letter-spacing:.14em;fill:var(--dim)}
+[hidden]{display:none!important}
+/* ===== stage content ===== */
+.scene{position:absolute;inset:0;transition:opacity .75s ease,transform 1s cubic-bezier(.2,.8,.2,1),filter .75s ease}
+.scene.pre{opacity:0;transform:scale(1.04) translateY(10px);filter:blur(10px)}
+.scene.out{opacity:0;transform:scale(.97);filter:blur(8px);pointer-events:none}
+.scene svg.art{position:absolute;left:0;top:0;width:1280px;height:720px;overflow:visible}
+.hdr{position:absolute;left:64px;top:42px;right:64px}
+.hdr .tag{font-family:var(--f-mono);font-size:17px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc)}
+.hdr h2{font-family:var(--f-disp);font-stretch:115%;font-weight:800;font-size:42px;margin:6px 0 0;letter-spacing:-.01em;color:var(--ink);line-height:1.1}
+
+.eq{position:absolute;font-family:var(--f-math);font-size:36px;color:var(--ink);white-space:nowrap;line-height:1.25}
+.eq i{font-style:italic}
+.eq .w{font-family:var(--f-body);font-style:normal;font-size:.68em;color:var(--dim);letter-spacing:.01em}
+.eq sub{font-size:.6em;vertical-align:-.3em;line-height:0;font-style:normal}
+.eq sup{font-size:.6em;vertical-align:.62em;line-height:0}
+.eq.s{font-size:30px}.eq.xs{font-size:25px}.eq.l{font-size:50px}.eq.xl{font-size:70px}
+.eq.dim{color:var(--dim)}.eq.acc{color:var(--acc)}
+.eq.box{border:2px solid var(--acc);border-radius:10px;padding:6px 18px;background:rgba(180,140,255,.07);box-shadow:0 0 40px rgba(180,140,255,.16)}
+.c{translate:-50% 0}
+.fr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 .12em;line-height:1.08;font-size:.9em}
+.fr>span:first-child{border-bottom:.055em solid currentColor;padding:0 .22em .05em}
+.fr>span:last-child{padding:.05em .22em 0}
+.rt{white-space:nowrap}
+.rt>.rad{border-top:.055em solid currentColor;padding:.04em .12em 0;margin-left:.03em;display:inline-block;line-height:1.15}
+.unit{font-style:normal;color:var(--dim)}
+.eq .hl,.eq.hl{color:var(--acc);text-shadow:0 0 24px rgba(180,140,255,.7)}
+.nt{position:absolute;font-family:var(--f-body);font-size:26px;line-height:1.38;color:var(--dim);white-space:normal}
+.nt b{color:var(--ink);font-weight:600}
+.nt.acc{color:var(--acc)}
+.nt i{font-family:var(--f-math)}
+.pill.nc{text-transform:none;letter-spacing:.02em;font-size:18px}
+.pill{position:absolute;font-family:var(--f-mono);font-size:17px;letter-spacing:.1em;text-transform:uppercase;padding:7px 15px;border-radius:999px;border:1.5px solid currentColor;white-space:nowrap}
+.panel{position:absolute;border:1.5px solid var(--line2);border-radius:14px;background:rgba(16,16,22,.72)}
+.node{position:absolute;box-sizing:border-box;border:2px solid var(--line);border-radius:12px;padding:14px 18px;background:rgba(12,12,18,.9);font-family:var(--f-disp);font-stretch:108%;font-weight:700;font-size:27px;color:var(--ink);line-height:1.1}
+.node small{display:block;font-family:var(--f-math);font-weight:400;font-size:22px;color:var(--dim);margin-top:6px}
+.node small i{font-style:italic}.node small sub{font-size:.65em}
+.node.acc{border-color:var(--acc);box-shadow:0 0 30px rgba(180,140,255,.18)}
+.li{position:absolute;display:flex;gap:18px;align-items:baseline;font-size:28px;line-height:1.35;color:var(--dim);font-family:var(--f-body)}
+.li .num{font-family:var(--f-mono);font-size:19px;color:var(--acc);border:1.5px solid var(--acc);border-radius:50%;width:38px;height:38px;display:grid;place-items:center;flex:none;transform:translateY(-3px)}
+.li b{color:var(--ink);font-weight:600}
+.li i{font-family:var(--f-math)}
+.hk{position:absolute;font-family:var(--f-mono);font-size:18px;letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.hero{position:absolute;font-family:var(--f-disp);font-weight:900;font-stretch:112%;font-size:128px;letter-spacing:-.02em;line-height:1;color:var(--ink)}
+.hsub{position:absolute;font-family:var(--f-body);font-size:31px;color:var(--dim)}
+.card .cnum{position:absolute;left:140px;top:150px;font-family:var(--f-disp);font-weight:900;font-stretch:125%;font-size:150px;line-height:1;color:transparent;-webkit-text-stroke:2px var(--line)}
+.card .csub{position:absolute;left:146px;top:338px;font-family:var(--f-mono);font-size:20px;letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.card .cttl{position:absolute;left:140px;top:372px;font-family:var(--f-disp);font-weight:800;font-stretch:116%;font-size:82px;letter-spacing:-.015em;line-height:1.02;color:var(--ink);max-width:1000px}
+
+/* svg drawing */
+.art .ln{stroke:var(--line);stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.art .ln2{stroke:var(--line2);stroke-width:2.2;fill:none}
+.art .dashl{stroke-dasharray:7 9}
+.art .obj{fill:#111117;stroke:#a19faa;stroke-width:3}
+.art .spr{fill:none;stroke:#cfcdd8;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+.art .hatch{stroke:var(--line2);stroke-width:2}
+.art text{font-family:var(--f-math);font-size:30px;fill:var(--ink)}
+.art .lab{font-style:italic}
+.art .sm{font-family:var(--f-body);font-size:22px;fill:var(--dim)}
+.art .smacc{font-family:var(--f-body);font-size:22px;fill:var(--acc)}
+.art .arr line{stroke:currentColor;stroke-width:4.5;stroke-linecap:round}
+.art .arr polygon{fill:currentColor}
+.art .arr text{fill:currentColor;font-style:italic;font-size:29px;paint-order:stroke;stroke:#060608;stroke-width:6px}
+.art .dim line{stroke:var(--dim);stroke-width:1.6}
+.art .dim text{fill:var(--dim);font-size:25px;font-style:italic;paint-order:stroke;stroke:#060608;stroke-width:6px}
+.art .ang path{fill:none;stroke:var(--acc);stroke-width:2.2}
+.art .ang text{fill:var(--acc);font-size:26px;font-style:italic}
+.art .dot{fill:var(--ink)}
+
+/* bars (energy diagrams) */
+.bars{position:absolute;width:210px;font-family:var(--f-math)}
+.btl{font-family:var(--f-disp);font-weight:800;font-stretch:110%;font-size:26px;text-align:center;margin-bottom:6px;color:var(--ink)}
+.bcols{height:200px;display:flex;align-items:flex-end;justify-content:center;gap:12px;border-bottom:2px solid var(--line)}
+.bc{width:50px;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+.bf{width:100%;height:calc(var(--h,0) * 100%);border-radius:4px 4px 0 0;transition:height 1s cubic-bezier(.2,.8,.2,1);box-shadow:0 0 26px -6px currentColor}
+.bv{font-size:20px;color:var(--ink);margin-bottom:4px;white-space:nowrap;min-height:24px}
+.bls{display:flex;justify-content:center;gap:12px;margin-top:6px}
+.bls span{width:50px;text-align:center;font-style:italic;font-size:23px;color:var(--dim)}
+.bls sub{font-size:.62em;font-style:normal}
+.be{text-align:center;font-size:21px;margin-top:4px;color:var(--ink);min-height:28px;white-space:nowrap}
+.be i{font-style:italic}.be sub{font-size:.6em;font-style:normal}.be sup{font-size:.6em}
+.bars.sm .bcols{height:130px}.bars.sm .bc{width:42px}.bars.sm .bls span{width:42px}.bars.sm .btl{font-size:22px}
+
+/* beat-driven visibility */
+.scene [data-b]{opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .8s cubic-bezier(.2,.8,.2,1),filter .4s ease,color .4s ease}
+.scene [data-b].vis{opacity:1;transform:none}
+.scene .draw[data-b]{opacity:1;transform:none;stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 1.2s cubic-bezier(.6,0,.2,1),opacity .5s ease}
+.scene .draw[data-b].vis{stroke-dashoffset:0}
+.scene .gone,.scene .draw.gone{opacity:0!important}
+.scene g.hl,.scene .node.hl,.scene .pill.hl{filter:drop-shadow(0 0 12px rgba(180,140,255,.8))}
+@media (prefers-reduced-motion:reduce){
+  #stage{animation:none}
+  .scene,.scene [data-b]{transition-duration:.01s!important}
+}
+@media (max-width:560px){
+  #cap{padding:12px 14px 14px}
+  #chName{display:none}
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div><div class="kick">FIS111 · Física General Mecánica</div><h1>Control 5: Torque, equilibrio y cuerpo rígido</h1></div>
+    <p id="dur"></p>
+  </header>
+
+  <div id="player">
+    <div id="frame">
+      <div id="stage"></div>
+      <div class="mark">FIS111</div>
+      <button id="big" aria-label="Reproducir la clase"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12-7.5z"/></svg></button>
+      <div id="resume" hidden><button id="bRes"></button><button id="bRes0">Desde el inicio</button></div>
+    </div>
+    <div id="ctl">
+      <div id="bar" tabindex="0" role="slider" aria-label="Progreso de la clase" aria-valuemin="0"><div class="tr"></div><div class="fill"></div><div class="knob"></div><div id="tip" hidden></div></div>
+      <div class="row">
+        <button class="ic" id="bPrev" aria-label="Paso anterior"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+        <button class="ic" id="bPlay" aria-label="Reproducir"><svg viewBox="0 0 24 24" fill="currentColor"><path id="icPlay" d="M7 4.5v15l12-7.5z"/></svg></button>
+        <button class="ic" id="bNext" aria-label="Paso siguiente"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+        <span id="time">0:00 / 0:00</span>
+        <span id="chName"></span>
+        <button class="tx" id="bVoice" aria-pressed="false" title="Narración con la voz del navegador">Voz: no</button>
+        <button class="tx" id="bSpeed" title="Velocidad">1×</button>
+        <button class="ic" id="bFs" aria-label="Pantalla completa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+      </div>
+    </div>
+    <div id="cap"><div class="ct" id="capTag"></div><div class="cx" id="capTx"></div></div>
+  </div>
+
+  <section>
+    <h3>Capítulos</h3>
+    <div class="chs" id="chs"></div>
+  </section>
+  <p class="keys">Atajos: <kbd>Espacio</kbd> pausa · <kbd>←</kbd> <kbd>→</kbd> paso anterior o siguiente · <kbd>F</kbd> pantalla completa. Los subtítulos son la narración completa; la voz es opcional.</p>
+</div>
+
+<script>
+/* ================= helpers: math text ================= */
+function fr(a,b){return `<span class="fr"><span>${a}</span><span>${b}</span></span>`}
+function rt(x){return `<span class="rt">√<span class="rad">${x}</span></span>`}
+function M(s){
+  const keep=[];const K=h=>{keep.push(h);return '\u0001'+(keep.length-1)+'\u0001'};
+  s=s.replace(/\{\{(.*?)\}\}/g,(_,a)=>K(`<span class="w">${a}</span>`))
+     .replace(/\[([^\]]+)\]/g,(_,a)=>K(`<span class="unit">${a.replace(/\^(\d)/g,'<sup>$1</sup>')}</span>`))
+     .replace(/_\{([^}]*)\}/g,(_,a)=>K(`<sub>${a}</sub>`))
+     .replace(/_([A-Za-z0-9áéíóú]+)/g,(_,a)=>K(`<sub>${a}</sub>`))
+     .replace(/\^\{([^}]*)\}/g,'<sup>$1</sup>').replace(/\^([0-9]+)/g,'<sup>$1</sup>');
+  s=s.split(/(<[^>]+>)/).map(p=>p[0]==='<'?p:p.replace(/(^|[^A-Za-zÀ-ÿ\u0001])([A-Za-zμωθαδφ])(?![A-Za-zÀ-ÿ])/g,'$1<i>$2</i>')).join('');
+  return s.replace(/\u0001(\d+)\u0001/g,(_,i)=>keep[+i]);
+}
+/* ================= helpers: beat attrs ================= */
+function ab(b){if(b==null||b===false)return '';if(typeof b!=='object')return ` data-b="${b}"`;let s='';if(b.b!=null)s+=` data-b="${b.b}"`;if(b.x!=null)s+=` data-x="${b.x}"`;if(b.d!=null)s+=` data-d="${b.d}"`;if(b.hl!=null)s+=` data-hl="${b.hl}"`;return s}
+const hasB=b=>b!=null&&b!==false&&(typeof b!=='object'||b.b!=null);
+/* ================= helpers: html ================= */
+function Q(x,y,s,b,cls=''){return `<div class="eq ${cls}" style="left:${x}px;top:${y}px"${ab(b)}>${M(s)}</div>`}
+function N(x,y,w,s,b,cls=''){return `<div class="nt ${cls}" style="left:${x}px;top:${y}px;width:${w}px"${ab(b)}>${s}</div>`}
+function P(x,y,s,col,b,c=''){return `<div class="pill ${c}" style="left:${x}px;top:${y}px;color:var(--${col})"${ab(b)}>${s}</div>`}
+function LI(x,y,n,s,b,w=1080){return `<div class="li" style="left:${x}px;top:${y}px;width:${w}px"${ab(b)}><span class="num">${n}</span><span>${s}</span></div>`}
+function node(x,y,w,t,s,b,cls=''){return `<div class="node ${cls}" style="left:${x}px;top:${y}px;width:${w}px"${ab(b)}>${t}<small>${M(s)}</small></div>`}
+function svg(s){return `<svg class="art" viewBox="0 0 1280 720">${s}</svg>`}
+function bars(id,x,y,t,b,cls=''){return `<div class="bars ${cls}" id="${id}" style="left:${x}px;top:${y}px"${ab(b)}><div class="btl">${t}</div><div class="bcols">${['K','Ug','Ue'].map(k=>`<div class="bc"><span class="bv"></span><div class="bf" style="background:var(--${k});color:var(--${k})"></div></div>`).join('')}</div><div class="bls"><span>K</span><span>U<sub>g</sub></span><span>U<sub>e</sub></span></div><div class="be"></div></div>`}
+function setB(r,id,v,lab,e){const el=r.querySelector('#'+id);if(!el)return;el.querySelectorAll('.bc').forEach((c,i)=>{c.style.setProperty('--h',v[i]||0);c.querySelector('.bv').textContent=lab&&lab[i]!=null?lab[i]:''});el.querySelector('.be').innerHTML=e?M(e):''}
+/* ================= helpers: svg ================= */
+const sb=s=>`<tspan font-size="19" dy="7" font-style="normal">${s}</tspan>`;
+function ln(x1,y1,x2,y2,b,c='ln',st=''){return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="${c}${hasB(b)&&!/dashl/.test(c)?' draw':''}" pathLength="1"${st?` style="${st}"`:''}${ab(b)}/>`}
+function pth(d,b,c='ln',st=''){return `<path d="${d}" class="${c}${hasB(b)&&!/dashl/.test(c)?' draw':''}" pathLength="1"${st?` style="${st}"`:''}${ab(b)}/>`}
+function cir(cx,cy,r,b,c='ln'){return `<circle cx="${cx}" cy="${cy}" r="${r}" class="${c}${hasB(b)&&!/dashl/.test(c)?' draw':''}" pathLength="1"${ab(b)}/>`}
+function dot(x,y,b,r=6){return `<circle cx="${x}" cy="${y}" r="${r}" class="dot"${ab(b)}/>`}
+function tx(x,y,s,b,cls='',anc='middle'){return `<text x="${x}" y="${y}" text-anchor="${anc}" dominant-baseline="central" class="${cls}"${ab(b)}>${s}</text>`}
+function ageo(x1,y1,x2,y2){const a=Math.atan2(y2-y1,x2-x1),h=17,w=.42;return{a,ex:x2-Math.cos(a)*h*.6,ey:y2-Math.sin(a)*h*.6,pts:`${x2},${y2} ${x2-h*Math.cos(a-w)},${y2-h*Math.sin(a-w)} ${x2-h*Math.cos(a+w)},${y2-h*Math.sin(a+w)}`,lx:x2+Math.cos(a)*26,ly:y2+Math.sin(a)*26}}
+function arr(x1,y1,x2,y2,col,lab,b,lp,st=''){const g=ageo(x1,y1,x2,y2);const [lx,ly]=lp||[g.lx,g.ly];return `<g class="arr" style="color:var(--${col});${st}"${ab(b)}><line x1="${x1}" y1="${y1}" x2="${g.ex}" y2="${g.ey}"/><polygon points="${g.pts}"/>${lab?`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central">${lab}</text>`:''}</g>`}
+function darr(id,col,lab,b){return `<g class="arr" id="${id}" style="color:var(--${col})"${ab(b)}><line/><polygon/>${lab?`<text text-anchor="middle" dominant-baseline="central">${lab}</text>`:''}</g>`}
+function setArr(r,id,x1,y1,x2,y2,lp){const e=r.querySelector('#'+id);if(!e)return;const g=ageo(x1,y1,x2,y2);const l=e.querySelector('line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',g.ex);l.setAttribute('y2',g.ey);e.querySelector('polygon').setAttribute('points',g.pts);const t=e.querySelector('text');if(t){const p=lp||[g.lx,g.ly];t.setAttribute('x',p[0]);t.setAttribute('y',p[1])}}
+function blk(x,y,w,h,lab,b,id){return `<g${id?` id="${id}"`:''}${ab(b)}><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" class="obj"/>${lab?tx(x+w/2,y+h/2,lab,null,'lab'):''}</g>`}
+function ball(x,y,r,lab,b,id){return `<g${id?` id="${id}"`:''}${ab(b)}><circle cx="${x}" cy="${y}" r="${r}" class="obj"/>${lab?tx(x,y,lab,null,'lab'):''}</g>`}
+function gnd(x1,x2,y,b,red){let h='';for(let x=x1+12;x<=x2;x+=22)h+=`<line x1="${x}" y1="${y+2}" x2="${x-12}" y2="${y+15}" class="hatch"/>`;return `<g${ab(b)}><line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" class="ln"${red?' style="stroke:var(--roce)"':''}/>${h}</g>`}
+function wall(x,y1,y2,b,side=-1){let h='';for(let y=y1+10;y<=y2;y+=20)h+=`<line x1="${x}" y1="${y}" x2="${x+side*13}" y2="${y+10}" class="hatch"/>`;return `<g${ab(b)}><line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" class="ln"/>${h}</g>`}
+function ceil(x1,x2,y,b){let h='';for(let x=x1+12;x<=x2;x+=22)h+=`<line x1="${x}" y1="${y-2}" x2="${x-12}" y2="${y-15}" class="hatch"/>`;return `<g${ab(b)}><line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" class="ln"/>${h}</g>`}
+function springPts(x1,y1,x2,y2,n=9,w=15){const L=Math.hypot(x2-x1,y2-y1)||1,ux=(x2-x1)/L,uy=(y2-y1)/L,nx=-uy,ny=ux,lead=Math.min(16,L*.12);const p=[[x1,y1],[x1+ux*lead,y1+uy*lead]];const m=2*n;for(let i=0;i<m;i++){const s=lead+(L-2*lead)*(i+.5)/m,sd=(i%2?-1:1)*w;p.push([x1+ux*s+nx*sd,y1+uy*s+ny*sd])}p.push([x2-ux*lead,y2-uy*lead],[x2,y2]);return p.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ')}
+function spr(id,x1,y1,x2,y2,b,n,w){return `<polyline${id?` id="${id}"`:''} class="spr" points="${springPts(x1,y1,x2,y2,n,w)}"${ab(b)}/>`}
+function setSpr(r,id,x1,y1,x2,y2,n,w){const e=r.querySelector('#'+id);if(e)e.setAttribute('points',springPts(x1,y1,x2,y2,n,w))}
+function dim(x1,y1,x2,y2,lab,b,lx,ly){const a=Math.atan2(y2-y1,x2-x1),nx=-Math.sin(a)*9,ny=Math.cos(a)*9;return `<g class="dim"${ab(b)}><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><line x1="${x1-nx}" y1="${y1-ny}" x2="${x1+nx}" y2="${y1+ny}"/><line x1="${x2-nx}" y1="${y2-ny}" x2="${x2+nx}" y2="${y2+ny}"/>${lab?`<text x="${lx??(x1+x2)/2}" y="${ly??(y1+y2)/2}" text-anchor="middle" dominant-baseline="central">${lab}</text>`:''}</g>`}
+function arc(cx,cy,r,a1,a2,lab,b,lr){lr=lr??r+24;const R=Math.PI/180,P=a=>[cx+r*Math.cos(a*R),cy-r*Math.sin(a*R)];const [x1,y1]=P(a1),[x2,y2]=P(a2);const lg=Math.abs(a2-a1)>180?1:0,sw=a2>a1?0:1,am=(a1+a2)/2*R;return `<g class="ang"${ab(b)}><path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 ${lg} ${sw} ${x2.toFixed(1)} ${y2.toFixed(1)}"/>${lab?`<text x="${(cx+lr*Math.cos(am)).toFixed(1)}" y="${(cy-lr*Math.sin(am)).toFixed(1)}" text-anchor="middle" dominant-baseline="central">${lab}</text>`:''}</g>`}
+/* ================= helpers: motion ================= */
+function pick(j,o){let v;for(const k of Object.keys(o).map(Number).sort((a,b)=>a-b))if(k<=j)v=o[k];return v}
+function tween(r,key,dur,fn){r._tw=r._tw||{};const id={};r._tw[key]=id;const t0=performance.now();const e=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;function st(now){if(r._tw[key]!==id)return;const p=Math.min(1,(now-t0)/(dur*1000));fn(e(p));if(p<1)requestAnimationFrame(st)}requestAnimationFrame(st)}
+function animv(r,key,to,dur,fn,instant){r._v=r._v||{};const from=r._v[key];r._v[key]=to;if(instant||from==null){fn(to);return}const isA=Array.isArray(to);tween(r,key,dur,p=>fn(isA?to.map((v,i)=>from[i]+(v-from[i])*p):from+(to-from)*p))}
+function setT(r,id,x,y){const e=r.querySelector('#'+id);if(e)e.setAttribute('transform',`translate(${x},${y})`)}
+
+/* ================= content registry ================= */
+const CHS=[],SC=[];let _ch=null;
+function CH(title,sub,narr){_ch={title,sub,scenes:[],i:CHS.length};CHS.push(_ch);if(narr)S({card:true,title,beats:[narr]})}
+function S(o){o.ch=_ch;o.i=SC.length;SC.push(o);_ch.scenes.push(o)}
+</script>
+<script>
+/* ================= helpers extra (momento) ================= */
+function vc(s){return `<span class="vc">${s}</span>`}
+function cball(x,y,r,col,lab,b,id){return `<g${id?` id="${id}"`:''}${ab(b)}><circle cx="${x}" cy="${y}" r="${r}" style="fill:#101016;stroke:var(--${col});stroke-width:3.5"/>${lab?`<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" class="lab" style="fill:var(--${col});font-size:${Math.max(18,Math.min(30,r*.9))}px">${lab}</text>`:''}</g>`}
+function cbox(x,y,w,h,col,lab,b,id){return `<g${id?` id="${id}"`:''}${ab(b)}><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" style="fill:#101016;stroke:var(--${col});stroke-width:3.5"/>${lab?`<text x="${x+w/2}" y="${y+h/2}" text-anchor="middle" dominant-baseline="central" class="lab" style="fill:var(--${col});font-size:24px">${lab}</text>`:''}</g>`}
+/* car drawn with bottom-center at (0,0); facing right */
+function carG(w,col,lab){const h=w*.3;return `<rect x="${-w/2}" y="${-h-w*.1}" width="${w}" height="${h}" rx="8" style="fill:#101016;stroke:var(--${col});stroke-width:3.5"/><path d="M${-w*.28} ${-h-w*.1} L${-w*.18} ${-h-w*.3} L${w*.16} ${-h-w*.3} L${w*.3} ${-h-w*.1}" style="fill:#101016;stroke:var(--${col});stroke-width:3"/><circle cx="${-w*.28}" cy="${-w*.1}" r="${w*.1}" class="obj"/><circle cx="${w*.28}" cy="${-w*.1}" r="${w*.1}" class="obj"/>${lab?`<text x="0" y="${-h/2-w*.1}" text-anchor="middle" dominant-baseline="central" style="fill:var(--${col});font-family:var(--f-body);font-size:${Math.round(w*.15)}px">${lab}</text>`:''}`}
+function car(x,y,w,col,lab,b,id){return `<g${ab(b)}><g${id?` id="${id}"`:''} transform="translate(${x},${y})">${carG(w,col,lab)}</g></g>`}
+function axesG(x,y,L,b,lx='î',ly='ĵ'){return `<g${ab(b)}>${arr(x,y,x+L,y,'dim','')}${arr(x,y,x,y-L,'dim','')}${tx(x+L+22,y,lx,null,'lab')}${tx(x,y-L-22,ly,null,'lab')}</g>`}
+function kf(t,P){if(t<=P[0][0])return P[0][1];for(let i=1;i<P.length;i++){if(t<=P[i][0]){const a=P[i-1],b=P[i],u=(t-a[0])/(b[0]-a[0]);return a[1]+(b[1]-a[1])*u}}return P[P.length-1][1]}
+/* 1D position: contact at time tc at xc, speed before vb, after va (px/s) */
+function p1d(t,tc,xc,vb,va){return xc+(t<tc?vb:va)*(t-tc)}
+function vis(r,id,on){const e=r.querySelector('#'+id);if(e)e.style.opacity=on?1:0}
+function ttl(x,y,s,b){return `<text x="${x}" y="${y}" class="ttl" text-anchor="middle"${ab(b)}>${s}</text>`}
+function sep(y,b){return `<line x1="70" y1="${y}" x2="1210" y2="${y}" class="ln2 dashl"${ab(b)}/>`}
+/* standard art root for "--dim" arrows */
+document.documentElement.style.setProperty('--dim2','#9a98a6');
+</script>
+<style>
+:root{--tor:#f4b55c;--rea:#8fc7ff;--ome:#ff8fd0;--alf:#ff8fd0}
+.art .bm{fill:#15151d;stroke:#a19faa;stroke-width:3;stroke-linejoin:round}
+.art .bm.acc{stroke:var(--acc)}
+.art .pv{fill:#060608;stroke:var(--ink);stroke-width:3}
+.art .ozz circle{fill:#060608;stroke:currentColor;stroke-width:2.5}
+.art .ozz line{stroke:currentColor;stroke-width:2.5}
+.art .ozz .cd{fill:currentColor;stroke:none}
+.art .cyc{fill:none;stroke:var(--acc);stroke-width:2.5;stroke-dasharray:4 7}
+.tbl{position:absolute;border-collapse:collapse;font-family:var(--f-body);font-size:24px;color:var(--dim)}
+.tbl td{padding:9px 18px;border-bottom:1px solid #26252e}
+.tbl td:last-child{font-family:var(--f-math);color:var(--ink);font-size:28px}
+.tbl td i{font-style:italic}
+.tbl sup{font-size:.6em;vertical-align:.6em;line-height:0}
+.tbl sub{font-size:.6em;vertical-align:-.3em;line-height:0}
+</style>
+<script>
+/* ================= helpers extra (cuerpo rígido) ================= */
+const RAD=Math.PI/180;
+/* point from (x,y) at math angle a (deg, CCW from +x) and length L, in svg coords */
+function PT(x,y,a,L){return [x+L*Math.cos(a*RAD),y-L*Math.sin(a*RAD)]}
+function beam(x1,y1,x2,y2,w,b,cls='',id){const L=Math.hypot(x2-x1,y2-y1)||1,nx=-(y2-y1)/L*w/2,ny=(x2-x1)/L*w/2;
+  const p=[[x1+nx,y1+ny],[x2+nx,y2+ny],[x2-nx,y2-ny],[x1-nx,y1-ny]].map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');
+  return `<polygon${id?` id="${id}"`:''} points="${p}" class="bm ${cls}"${ab(b)}/>`}
+function piv(x,y,b,r=9){return `<circle cx="${x}" cy="${y}" r="${r}" class="pv"${ab(b)}/>`}
+/* hinge on a wall/ceiling: small triangle support */
+function tri(x,y,b,dir='up'){const s=22;let p;if(dir==='up')p=`${x},${y} ${x-s},${y+s*1.3} ${x+s},${y+s*1.3}`;else if(dir==='down')p=`${x},${y} ${x-s},${y-s*1.3} ${x+s},${y-s*1.3}`;else if(dir==='right')p=`${x},${y} ${x-s*1.3},${y-s} ${x-s*1.3},${y+s}`;else p=`${x},${y} ${x+s*1.3},${y-s} ${x+s*1.3},${y+s}`;
+  return `<g${ab(b)}><polygon points="${p}" style="fill:#101016;stroke:#a19faa;stroke-width:2.5"/>${piv(x,y,null,7)}</g>`}
+/* curved arrow (torque / rotation), angles in math degrees */
+function arcA(cx,cy,r,a1,a2,col,lab,b,lp){const s=Math.sign(a2-a1)||1;const E=a=>PT(cx,cy,a,r);const [x1,y1]=E(a1),[xe,ye]=E(a2-s*5),[xp,yp]=E(a2-s*14),[x2,y2]=E(a2);
+  const g=ageo(xp,yp,x2,y2);const lg=Math.abs(a2-a1)>180?1:0,sw=a2>a1?0:1;const am=(a1+a2)/2;const [lx,ly]=lp||PT(cx,cy,am,r+30);
+  return `<g class="arr" style="color:var(--${col})"${ab(b)}><path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 ${lg} ${sw} ${xe.toFixed(1)} ${ye.toFixed(1)}" style="fill:none;stroke:currentColor;stroke-width:4;stroke-linecap:round"/><polygon points="${g.pts}"/>${lab?`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" dominant-baseline="central">${lab}</text>`:''}</g>`}
+/* out of screen (dot) / into screen (cross) */
+function ozz(x,y,type,col,b,r=15){return `<g class="ozz" style="color:var(--${col})"${ab(b)}><circle cx="${x}" cy="${y}" r="${r}"/>${type==='out'?`<circle cx="${x}" cy="${y}" r="4.5" class="cd"/>`:`<line x1="${x-r*.62}" y1="${y-r*.62}" x2="${x+r*.62}" y2="${y+r*.62}"/><line x1="${x+r*.62}" y1="${y-r*.62}" x2="${x-r*.62}" y2="${y+r*.62}"/>`}</g>`}
+/* wheel/pulley with spokes that can rotate: id on inner group */
+function wheel(cx,cy,r,b,id,col){const c=col?`style="fill:#101016;stroke:var(--${col});stroke-width:3.5"`:'class="obj"';
+  return `<g${ab(b)}><g${id?` id="${id}"`:''}><circle cx="${cx}" cy="${cy}" r="${r}" ${c}/><line x1="${cx-r*.8}" y1="${cy}" x2="${cx+r*.8}" y2="${cy}" class="ln2"/><line x1="${cx}" y1="${cy-r*.8}" x2="${cx}" y2="${cy+r*.8}" class="ln2"/></g>${piv(cx,cy,null,6)}</g>`}
+function rot(r,id,deg,cx,cy){const e=r.querySelector('#'+id);if(e)e.setAttribute('transform',`rotate(${deg.toFixed(2)} ${cx} ${cy})`)}
+/* string + block hanging from (x,y) */
+function hang(x,y,len,w,h,lab,b,col){return `<g${ab(b)}><line x1="${x}" y1="${y}" x2="${x}" y2="${y+len}" class="ln2" style="stroke:#cfcdd8"/>${col?cbox(x-w/2,y+len,w,h,col,lab):blk(x-w/2,y+len,w,h,lab)}</g>`}
+/* small label text in body font */
+function lb(x,y,s,b,col='dim',anc='middle',sz=22){return `<text x="${x}" y="${y}" text-anchor="${anc}" dominant-baseline="central" style="font-family:var(--f-body);font-size:${sz}px;fill:var(--${col})"${ab(b)}>${s}</text>`}
+function tbl(x,y,rows,b,w){return `<table class="tbl" style="left:${x}px;top:${y}px${w?';width:'+w+'px':''}"${ab(b)}>${rows.map(r=>`<tr><td>${r[0]}</td><td>${M(r[1])}</td></tr>`).join('')}</table>`}
+</script>
+<script>
+/* ===================== INTRO ===================== */
+CH('Introducción','Cómo usar esta clase',null);
+
+S({noHdr:true,title:'Control 5',
+html:`
+<div class="hk" style="left:90px;top:150px" data-b="0">FIS111 · USM · 2do semestre 2026</div>
+<div class="hero" style="left:84px;top:186px" data-b="0" data-d=".15">Control 5</div>
+<div class="hsub" style="left:90px;top:332px" data-b="0" data-d=".3">Torque, equilibrio y cuerpo rígido</div>
+${N(90,400,600,'<b>Viernes 13 de noviembre</b>, en tu bloque de ayudantía. Lápiz, calculadora científica simple y carnet.',1)}
+${N(90,520,600,'Entran las <b>clases 19 a 23</b> y la <b>ayudantía 10</b>. La ayudantía 11 se publica el viernes 6.',2)}
+${N(90,630,640,'<span class="kb">Espacio</span> pausa &nbsp;·&nbsp; <span class="kb">←</span> <span class="kb">→</span> paso anterior o siguiente &nbsp;·&nbsp; velocidad abajo a la derecha',3)}
+${svg(`
+  <g data-b="0"><polygon points="980,452 950,512 1010,512" style="fill:#101016;stroke:#a19faa;stroke-width:2.5"/></g>
+  <g data-b="0"><g id="i_bm">${beam(760,440,1200,440,18,null)}
+    ${blk(780,372,62,62,'',null)}${blk(1110,390,46,44,'',null)}</g></g>
+  ${piv(980,440,0,8)}
+  <g id="i_ar">${arcA(980,440,120,60,120,'tor','τ',0)}</g>
+  ${tx(980,590,'Στ = 0  ⇒  no gira',0,'smacc')}
+`)}`,
+beats:[
+`Hola. Esta es la clase completa para el control 5 de FIS111. El tema es el cuerpo rígido: torque, equilibrio, dinámica de rotación, rodadura y energía. Vamos desde cero, paso a paso, sin saltarnos nada.`,
+`Primero, los datos. El control 5 es el viernes 13 de noviembre, en tu bloque de ayudantía. Lleva lápiz, calculadora científica simple y tu carnet. Ojo: coordinación todavía no publica la lista oficial de contenidos. Normalmente la avisan en el mensaje semanal del viernes anterior.`,
+`Por eso esta clase cubre todo lo que vino después del control 4: las clases 19, 20, 21, 22 y 23, y la ayudantía 10. La ayudantía 11 es este viernes 6 de noviembre. Cuando salga, se puede agregar.`,
+`Como siempre: pausa con la barra espaciadora, retrocede o avanza con las flechas, y cambia la velocidad abajo a la derecha. Si algo no te queda claro, vuelve atrás. Cada ejercicio, intenta hacerlo tú primero y después mira la solución.`],
+loop(st,r){const a=7*Math.sin(st*1.1);rot(r,'i_bm',a,980,440);const e=r.querySelector('#i_ar');if(e)e.style.opacity=.35+.65*Math.abs(Math.cos(st*1.1))}
+});
+
+S({title:'El mapa del control',
+html:`
+${node(70,180,260,'Torque','τ = r F sin θ',0,'acc')}
+${node(400,180,330,'Equilibrio','ΣF = 0  y  Στ = 0',1,'acc')}
+${node(800,180,400,'Dinámica de rotación','Στ = I α',2,'acc')}
+${node(70,430,330,'Momento de inercia','I = Σ m r^2',3)}
+${node(470,430,330,'Rodadura','v_{CM} = R ω',4)}
+${node(870,430,330,'Energía','K = ½ I ω^2 + ½ M v^2',5)}
+${svg(`${arr(332,240,392,240,'line','',1)}${arr(732,240,792,240,'line','',2)}
+${arr(990,300,300,422,'line','',3)}${arr(402,490,462,490,'line','',4)}${arr(802,490,862,490,'line','',5)}`)}
+${Q(70,620,'g = 10 [m/s^2]',6,'s box')}
+${N(400,622,800,'Como en las clases 19 y 20. Si el enunciado da otro valor (la ayudantía 10 usa 9,8), manda el enunciado.',6)}`,
+beats:[
+`Este es el mapa. Todo parte con una idea nueva: el torque. El torque mide qué tan capaz es una fuerza de hacer girar un cuerpo. Es la clase 19.`,
+`Con el torque aparece la segunda condición de equilibrio. Hasta ahora, un cuerpo estaba en equilibrio si la suma de fuerzas era cero. Ahora además pedimos que la suma de torques sea cero. Eso es la clase 19, la clase 20 y toda la ayudantía 10.`,
+`Si la suma de torques no es cero, el cuerpo gira cada vez más rápido. Eso es la dinámica de rotación, la clase 21. La ecuación es suma de torques igual a I por alfa. Es el "Newton" de las rotaciones.`,
+`En esa ecuación aparece I, el momento de inercia. Es la "masa" de las rotaciones: dice qué tan difícil es hacer girar algo. Lo vemos en las clases 21 y 22.`,
+`Después, la rodadura: una rueda que avanza y gira a la vez, sin resbalar. La clave es una condición que conecta las dos cosas: la velocidad del centro es R por omega. Clase 22.`,
+`Y al final, la energía de un cuerpo rígido: un cuerpo que gira también tiene energía cinética, la de rotación. Clase 23.`,
+`Una convención: usamos g igual a 10 metros por segundo al cuadrado, porque con ese valor salen exactos los resultados de las clases 19 y 20. Pero si un enunciado te da otro valor, como el problema 2 de la ayudantía 10, que usa 9,8, usas el del enunciado. Siempre manda el enunciado.`]
+});
+
+S({title:'Código de colores',
+html:(()=>{const F=[['peso','Peso','M g'],['ten','Tensión y fuerza de resorte','T, F_e'],['rea','Reacción del pivote o normal','R, N'],['roce','Roce','f'],['acel','Aceleración y α','a, α']];
+let s='',h='';F.forEach((f,k)=>{const y=200+70*k;s+=arr(100,y,210,y,f[0],'',{b:0,d:k*.1});h+=`<div class="nt" style="left:240px;top:${y-19}px;width:520px;color:var(--${f[0]})"${ab({b:0,d:k*.1})}><b style="color:inherit">${f[1]}</b> <span style="font-family:var(--f-math);color:var(--dim)">${M(f[2])}</span></div>`});
+s+=arcA(930,300,70,200,-20,'tor','τ',1)+piv(930,300,1);
+s+=ozz(820,500,'out','tor',2)+lb(820,550,'sale de la pantalla',2,'dim','middle',20)+lb(820,580,'antihorario · positivo',2,'acc','middle',20);
+s+=ozz(1080,500,'in','tor',2)+lb(1080,550,'entra a la pantalla',2,'dim','middle',20)+lb(1080,580,'horario · negativo',2,'acc','middle',20);
+return svg(s)+h})(),
+beats:[
+`Para que todo sea fácil de seguir, cada fuerza tiene siempre el mismo color. El peso en verde agua. La tensión de una cuerda y la fuerza de un resorte, en morado. La reacción de un pivote, o la normal, en celeste. El roce en rojo. Y la aceleración, lineal o angular, en rosado.`,
+`El torque lo dibujamos como una flecha curva, en naranjo. Una flecha curva dice hacia dónde quiere hacer girar el cuerpo esa fuerza.`,
+`Y dos símbolos que usa la clase. Un círculo con un punto significa "sale de la pantalla, hacia ti". Un círculo con una cruz significa "entra a la pantalla". Más adelante vemos de dónde salen. Por ahora: en todo este video, girar en sentido antihorario es positivo, y en sentido horario es negativo.`]
+});
+
+/* ===================== CH1 TORQUE ===================== */
+CH('¿Qué es el torque?','Clase 19','Capítulo uno: el torque. Es la idea nueva de esta unidad, y todo lo demás se construye sobre ella.');
+
+S({title:'Las fuerzas también hacen girar',
+html:`${svg(`
+${ttl(380,190,'UNA PUERTA VISTA DESDE ARRIBA',0)}
+<g data-b="0"><line x1="120" y1="300" x2="120" y2="470" class="ln"/>${wall(120,300,470,null)}</g>
+<g data-b="0"><g id="d_door">${beam(140,385,600,385,22,null)}
+  ${arr(590,500,590,402,'ten','F',{b:2},[620,470])}
+  ${arr(210,500,210,402,'ten','F',{b:2},[240,470])}</g></g>
+${piv(140,385,0)}${lb(150,345,'bisagra',0,'dim','start')}
+${tx(590,540,'fácil',2,'smacc')}${tx(210,540,'cuesta mucho',2,'sm')}
+${ttl(1000,190,'UNA COPA',1)}
+<g data-b="1"><polygon points="950,520 1050,520 1080,320 920,320" style="fill:#101016;stroke:#a19faa;stroke-width:3"/>${gnd(840,1180,520,null)}</g>
+${arr(830,505,945,505,'ten','',1)}${lb(815,505,'abajo: desliza',1,'dim','end')}
+${arr(800,335,915,335,'ten','',1)}${lb(785,335,'arriba: se vuelca',1,'acc','end')}
+`)}
+${N(120,600,1060,'La <b>misma fuerza</b> produce efectos distintos según <b>dónde</b> se aplica. Las fuerzas pueden producir <b>rotación</b>.',3)}`,
+beats:[
+`Hasta ahora, en el curso, cada cuerpo era una partícula: un punto. Si le aplicabas una fuerza, el cuerpo entero se movía junto, y no importaba en qué parte del cuerpo la aplicabas.`,
+`Pero en la vida real sí importa. Mira una copa. Si la empujas abajo, cerca de la base, la copa desliza sobre la mesa. Si la empujas arriba, con la misma fuerza, la copa se vuelca: gira.`,
+`Otro ejemplo: una puerta. Si la empujas lejos de la bisagra, se abre fácil. Si la empujas muy cerca de la bisagra, con la misma fuerza, casi no se mueve. Haz la prueba en tu casa: es impresionante cuánto cuesta.`,
+`Conclusión: las fuerzas no solo trasladan a los cuerpos. También los pueden hacer girar, si se aplican en el lugar adecuado. La cantidad que mide esa capacidad de hacer girar se llama torque. En la vida diaria le decimos "palanca".`],
+loop(st,r){const c=(st%5)/5;const a=-26*(c<.6?(0.5-0.5*Math.cos(c/.6*Math.PI)):(0.5+0.5*Math.cos((c-.6)/.4*Math.PI)));rot(r,'d_door',r._j>=2?a:0,140,385)}
+});
+
+S({title:'Torque: la definición',
+html:(()=>{const O=[230,520],th=60,ar=24,Pp=PT(O[0],O[1],ar,420),Fe=PT(Pp[0],Pp[1],ar+th,170),ex=PT(Pp[0],Pp[1],ar,130);
+return svg(`
+${piv(O[0],O[1],0)}${lb(O[0]-6,O[1]+40,'eje de giro O',0)}
+${arr(O[0],O[1],Pp[0],Pp[1],'line','r',1,[PT(O[0],O[1],ar,210)[0],PT(O[0],O[1],ar,210)[1]-30])}
+${dot(Pp[0],Pp[1],1)}${lb(Pp[0]-28,Pp[1]-30,'punto donde se aplica F',1,'dim','end',20)}
+${ln(Pp[0],Pp[1],ex[0],ex[1],2,'ln2 dashl')}
+${arr(Pp[0],Pp[1],Fe[0],Fe[1],'ten','F',2)}
+${arc(Pp[0],Pp[1],52,ar,ar+th,'θ',2,82)}
+${arcA(O[0],O[1],90,0,70,'tor','τ',3,[O[0]+60,O[1]-118])}
+`)
++Q(760,170,'τ = r × F',3,'l')
++N(760,250,450,'r: <b>desde el eje</b> hasta el punto donde actúa la fuerza.',1)
++Q(760,350,'|τ| = r F sin θ',4,'l box')
++N(760,440,460,'θ: ángulo entre <b>r</b> y <b>F</b>, puestos cola con cola.',2)
++Q(760,530,'[N·m]',5,'s')
++N(860,534,350,'unidad del torque',5)
++N(760,600,460,'θ = 0°: sin θ = 0, no gira. &nbsp;θ = 90°: sin θ = 1, máximo.',6)})(),
+beats:[
+`Vamos a la definición. Primero necesitamos un eje de giro, un punto O. Es el punto alrededor del cual el cuerpo gira, o podría girar: la bisagra de la puerta, el pivote de un balancín.`,
+`Luego dibujamos un vector r. El vector r sale desde el eje de giro y llega hasta el punto exacto donde se aplica la fuerza. Es muy importante: r siempre parte en el eje, no en otro lado.`,
+`En ese punto actúa la fuerza F. Ahora necesitamos el ángulo theta entre r y F. Para medirlo, prolongamos r con una línea punteada, y medimos el ángulo entre esa prolongación y la fuerza. Es decir, el ángulo entre los dos vectores puestos cola con cola.`,
+`El torque, la letra griega tau, se define como el producto cruz entre r y F: tau igual a r cruz F. El orden importa: primero r, después F.`,
+`Para la magnitud del torque usamos: tau igual a r por F por el seno de theta. Esta es la fórmula que más vas a usar en el control.`,
+`La unidad es newton por metro, porque es una fuerza, en newton, por una distancia, en metros.`,
+`Mira qué pasa con el seno. Si theta es cero, la fuerza apunta en la misma línea que r, el seno es cero y el torque es cero: esa fuerza no hace girar nada. Si theta es 90 grados, el seno es uno y el torque es máximo. Por eso la puerta se empuja perpendicular.`]
+});
+
+S({title:'Dos formas de calcular el mismo torque',
+html:(()=>{const O=[220,540],th=60,ar=24,Pp=PT(O[0],O[1],ar,420),fd=ar+th;const ux=Math.cos(fd*RAD),uy=-Math.sin(fd*RAD);
+const A1=[Pp[0]-ux*330,Pp[1]-uy*330],A2=[Pp[0]+ux*200,Pp[1]+uy*200];
+/* foot of perpendicular from O to line of action */
+const t=((O[0]-Pp[0])*ux+(O[1]-Pp[1])*uy),Fp=[Pp[0]+ux*t,Pp[1]+uy*t];
+const Fe=PT(Pp[0],Pp[1],fd,170);const perp=PT(Pp[0],Pp[1],ar+90,170*Math.sin(th*RAD)),par=PT(Pp[0],Pp[1],ar,170*Math.cos(th*RAD));
+return svg(`
+${piv(O[0],O[1],0)}${tx(O[0]-24,O[1]+26,'O',0,'lab')}
+${arr(O[0],O[1],Pp[0],Pp[1],'line','r',0,[PT(O[0],O[1],ar,240)[0],PT(O[0],O[1],ar,240)[1]+28])}
+${arr(Pp[0],Pp[1],Fe[0],Fe[1],'ten','F',0)}
+${ln(A1[0],A1[1],A2[0],A2[1],1,'ln2 dashl')}${lb(A1[0]+10,A1[1]-26,'línea de acción de F',1,'dim','start',20)}
+${ln(O[0],O[1],Fp[0],Fp[1],2,'ln','stroke:var(--acc)')}${tx((O[0]+Fp[0])/2-26,(O[1]+Fp[1])/2-8,'d',2,'lab')}
+<g data-b="4">${arr(Pp[0],Pp[1],perp[0],perp[1],'acel','F'+sb('⊥'),null,[perp[0]-30,perp[1]-12])}${ln(Pp[0],Pp[1],par[0],par[1],null,'ln2 dashl')}</g>
+`)
++N(760,170,450,'<b>Forma 1: brazo de palanca.</b> d es la distancia <b>perpendicular</b> desde O hasta la línea de acción.',1)
++Q(760,290,'d = r sin θ   ⇒   τ = F d',3,'s box')
++N(760,380,450,'<b>Forma 2: componente perpendicular.</b> Solo la parte de F perpendicular a r hace girar.',4)
++Q(760,500,'F_{⊥} = F sin θ   ⇒   τ = r F_{⊥}',5,'s box')
++N(760,590,450,'Las dos dan <b>r F sin θ</b>. Usa la que sea más cómoda.',6)})(),
+beats:[
+`La misma fórmula se puede leer de dos maneras, y en los ejercicios conviene saber las dos. Aquí tenemos el eje O, el vector r y la fuerza F.`,
+`Forma uno: el brazo de palanca. Prolongamos la fuerza hacia los dos lados con una línea punteada. Esa línea se llama línea de acción de la fuerza.`,
+`Ahora medimos la distancia más corta desde el eje O hasta esa línea, es decir, perpendicular a la línea. Esa distancia, d, se llama brazo de palanca.`,
+`Con trigonometría, en el triángulo rectángulo que se forma, d es igual a r por el seno de theta. Entonces el torque es simplemente fuerza por brazo: tau igual a F por d. Esta forma es la mejor cuando las fuerzas son verticales, como los pesos: el brazo es la distancia horizontal al eje.`,
+`Forma dos: descomponer la fuerza. Separamos F en una parte a lo largo de r, que no hace girar nada porque tira directo hacia el eje o lo empuja, y una parte perpendicular a r, que es la que hace girar.`,
+`La parte perpendicular vale F por seno de theta. Entonces el torque es r por F perpendicular.`,
+`Fíjate que las dos formas dan exactamente lo mismo: r por F por seno de theta. Solo cambia cómo agrupas los factores. Usa la que te resulte más cómoda en cada problema.`]
+});
+
+S({title:'Ejemplo rápido: una llave',
+html:`${svg(`
+${piv(230,470,0,14)}${lb(230,520,'tuerca (eje)',0)}
+${beam(230,470,610,470,26,0)}
+${arr(600,470,600+120*Math.cos(60*RAD),470-120*Math.sin(60*RAD),'ten','F',0,[690,330])}
+${dim(230,410,600,410,'r = 0,30 m',0,415,385)}
+${arc(600,470,50,0,60,'60°',0,80)}
+${ln(610,470,720,470,0,'ln2 dashl')}
+${arcA(230,470,64,25,205,'tor','τ',2,[160,380])}
+`)}
+${N(780,170,430,'Ejemplo para practicar (no es de la clase): una llave de 0,30 m, empujada con 50 N a 60° del mango.',0)}
+${Q(780,320,'τ = r F sin θ',1)}
+${Q(780,400,'τ = 0,30 · 50 · sin 60°',1,'s')}
+${Q(780,480,'τ = 13,0 [N·m]',2,'box')}
+${N(780,580,430,'Si empujas perpendicular (90°): τ = 15 N·m, el máximo.',3)}`,
+beats:[
+`Hagamos un ejemplo rápido para fijar la fórmula. Este no es de la clase, es para practicar. Una llave de 30 centímetros, o sea 0,30 metros. La empujamos en la punta con 50 newton, formando 60 grados con el mango.`,
+`Usamos la fórmula: tau igual a r por F por seno de theta. r es 0,30 metros, F es 50 newton y theta es 60 grados, porque es el ángulo entre el mango, que es la dirección de r, y la fuerza.`,
+`0,30 por 50 da 15. Por el seno de 60, que es 0,866, da 13,0 newton metro. Y el sentido es antihorario, porque la fuerza empuja la punta hacia arriba: torque positivo.`,
+`Si la empujáramos perpendicular al mango, a 90 grados, el seno sería uno y el torque sería 15 newton metro, el máximo posible con esa fuerza y esa llave.`]
+});
+
+S({title:'La puerta: ¿cuál fuerza hace girar?',
+html:`${svg(`
+<g data-b="0"><line x1="140" y1="320" x2="140" y2="520" class="ln"/>${wall(140,320,520,null)}</g>
+${beam(160,420,700,420,22,0)}${piv(160,420,0)}${lb(170,470,'bisagra',0,'dim','start')}
+${arr(860,420,714,420,'ten','F'+sb('1'),1,[870,385])}
+${arr(700,575,700,434,'ten','F'+sb('2'),2,[735,560])}
+${arr(810,540,710,432,'ten','F'+sb('3'),3,[830,560])}
+${lb(160,620,'vista desde arriba',0,'dim','start',20)}
+`)}
+${N(920,190,300,'<b>F₁</b> apunta hacia la bisagra: θ = 180°, <b>τ = 0</b>. No gira.',1)}
+${N(920,330,300,'<b>F₂</b> perpendicular y lejos: θ = 90°, <b>τ máximo</b>. La más eficiente.',2)}
+${N(920,470,300,'<b>F₃</b> inclinada: solo ayuda su parte perpendicular. τ menor.',3)}
+${N(920,610,300,'En tu figura el orden puede ser otro. La idea es la misma.',4,'acc')}`,
+beats:[
+`En la clase aparece esta pregunta: una puerta, vista desde arriba, con tres fuerzas, F uno, F dos y F tres. ¿Cuál permite rotar la puerta? ¿Cuál es la más eficiente? Pensémoslo con la fórmula.`,
+`F uno apunta a lo largo de la puerta, directo hacia la bisagra. Su línea de acción pasa por el eje, así que el brazo de palanca es cero. Con la fórmula: el ángulo entre r y F es 180 grados, y el seno de 180 es cero. Torque cero. Esa fuerza solo aprieta la puerta contra la bisagra, no la abre.`,
+`F dos es perpendicular a la puerta y está en la punta, lo más lejos posible de la bisagra. El ángulo es 90 grados, el seno es uno, y el brazo es el máximo. Es la que produce más torque: la más eficiente.`,
+`F tres está inclinada. Una parte de ella va a lo largo de la puerta y no hace nada. Solo su componente perpendicular hace girar. Produce torque, pero menos que F dos si las fuerzas tienen el mismo tamaño.`,
+`En la figura de tu clase las fuerzas pueden estar numeradas en otro orden. No importa: la regla es la misma. Lo que hace girar es la parte perpendicular de la fuerza, y mientras más lejos del eje, mejor.`]
+});
+
+S({title:'Dirección del torque: la mano derecha',
+html:`${svg(`
+${ttl(320,190,'ANTIHORARIO',0)}
+${wheel(320,360,90,0)}${arcA(320,360,130,200,-20,'tor','',0)}${ozz(320,360,'out','tor',1,22)}
+${ttl(320,540,'τ SALE DE LA PANTALLA ⊙',1)}${tx(320,590,'positivo (+)',1,'smacc')}
+${ttl(860,190,'HORARIO',2)}
+${wheel(860,360,90,2)}${arcA(860,360,130,-20,200,'tor','',2)}${ozz(860,360,'in','tor',2,22)}
+${ttl(860,540,'τ ENTRA A LA PANTALLA ⊗',2)}${tx(860,590,'negativo (−)',2,'smacc')}
+`)}
+${N(90,630,1100,'Regla: dedos de la mano derecha en el sentido de giro, el pulgar marca la dirección de τ.',3)}`,
+beats:[
+`El torque es un vector, porque viene de un producto cruz. ¿Hacia dónde apunta? Usamos la regla de la mano derecha. Curva los dedos de tu mano derecha en el sentido en que la fuerza quiere hacer girar el cuerpo. Tu pulgar apunta en la dirección del torque.`,
+`Si el giro es antihorario, como el de la izquierda, el pulgar apunta hacia afuera de la pantalla, hacia ti. Eso se dibuja con un círculo con un punto. En este video lo llamamos positivo.`,
+`Si el giro es horario, el pulgar apunta hacia adentro de la pantalla, y se dibuja con un círculo con una cruz. Lo llamamos negativo.`,
+`En la práctica, en los problemas planos solo necesitas el signo: miras hacia dónde haría girar cada fuerza, y le pones más si es antihorario y menos si es horario. Lo importante es elegir una convención al principio y mantenerla en todo el problema.`]
+});
+
+S({title:'Simulación: el balancín',
+html:`${svg(`
+<polygon points="640,470 605,540 675,540" style="fill:#101016;stroke:#a19faa;stroke-width:2.5"/>
+<g id="ph_b">${beam(240,460,1040,460,16,null)}
+${[-4,-3,-2,-1,1,2,3,4].map(k=>`<line x1="${640+k*90}" y1="452" x2="${640+k*90}" y2="468" class="ln2"/>`).join('')}
+<g id="ph_l">${cbox(-30,-70,60,70,'A','m',null)}</g>
+${cbox(640+4*90-30,382,60,70,'B','m',null)}</g>
+${piv(640,460,0,8)}
+${dim(280,580,640,580,'4 posiciones',0)}
+`)}
+${N(90,170,500,'Dos extintores iguales, a 4 posiciones del centro: el balancín queda horizontal.',0)}
+${N(700,170,500,'¿Qué pasa si el de la izquierda se mueve <b>dos posiciones</b> hacia el centro?',1)}
+${N(90,620,1100,'Su brazo baja de 4 a 2: su torque se reduce a la mitad. Gana el de la derecha: <b>gira en sentido horario</b>.',2,'acc')}`,
+beats:[
+`En la clase 19 se usa la simulación PhET llamada "Ley de Equilibrio". Hay un balancín con un pivote al centro y dos extintores iguales, cada uno a cuatro posiciones del centro. Los torques de los dos pesos son iguales y opuestos, así que el balancín queda horizontal.`,
+`La pregunta es: ¿qué pasa si el extintor de la izquierda se mueve dos posiciones hacia el centro? Piénsalo antes de seguir.`,
+`El peso del extintor no cambia, pero su brazo de palanca baja de cuatro posiciones a dos. Su torque se reduce a la mitad. Ahora el torque del extintor de la derecha es más grande, así que el balancín gira hacia la derecha, en sentido horario, hasta que el extremo derecho toca el suelo.`],
+on(j,r,m){const x=j>=2?640-2*90:640-4*90;animv(r,'phx',x,1.2,v=>setT(r,'ph_l',v,452),m);animv(r,'pha',j>=2?9:0,1.4,v=>rot(r,'ph_b',v,640,460),m)}
+});
+
+/* ===================== CH2 EQUILIBRIO ===================== */
+CH('Equilibrio de un cuerpo rígido','Clase 19','Capítulo dos: el equilibrio. Un cuerpo en equilibrio no se traslada y tampoco gira. Eso nos da dos condiciones.');
+
+S({title:'Del DCL al DCL extendido',
+html:`${svg(`
+<polygon points="560,400 525,470 595,470" style="fill:#101016;stroke:#a19faa;stroke-width:2.5"/>
+${beam(220,390,1000,390,14,0)}${piv(560,390,0,7)}
+${hang(300,397,60,60,50,'',{b:0,x:2})}${hang(900,397,60,60,50,'',{b:0,x:2})}
+${tx(300,540,'P₁',{b:0,x:2},'lab')}${tx(900,540,'P₂',{b:0,x:2},'lab')}
+${arr(300,398,300,500,'peso','P'+sb('1'),{b:2},[335,490])}
+${arr(900,398,900,500,'peso','P'+sb('2'),{b:2},[935,490])}
+${arr(560,390,560,250,'rea','N',2,[590,260])}
+${dim(300,320,560,320,'r₁',3)}${dim(560,320,900,320,'r₂',3)}
+`)}
+${N(90,170,520,'Barra de masa despreciable sobre un pivote, con dos pesos.',0)}
+${N(660,170,560,'Un DCL normal pone todas las fuerzas en un punto y <b>pierde dónde actúan</b>.',1)}
+${Q(90,600,'N − P_1 − P_2 = 0',4,'s')}
+${Q(560,600,'r_1 P_1 − r_2 P_2 = 0',5,'s box')}
+${N(980,598,240,'torques respecto de O',5)}`,
+beats:[
+`Empecemos con un ejemplo de la clase 19: una barra de masa despreciable, apoyada en un pivote, con un peso P uno colgando a la izquierda y un peso P dos a la derecha.`,
+`Si hacemos un diagrama de cuerpo libre como antes, pondríamos todas las fuerzas en un solo punto. Pero así perdemos la información más importante para que gire: dónde actúa cada fuerza.`,
+`Por eso usamos el diagrama de cuerpo libre extendido, o DCLE. Dibujamos el cuerpo con su forma real, y cada fuerza en el punto exacto donde actúa. Aquí: el peso uno a la izquierda, el peso dos a la derecha, y la fuerza del pivote, N, hacia arriba en el pivote.`,
+`Además anotamos las distancias desde el pivote hasta cada fuerza: r uno y r dos. Esas distancias son los brazos de palanca.`,
+`Ahora las ecuaciones. Primero fuerzas: lo que sube menos lo que baja es cero. N menos P uno menos P dos igual a cero.`,
+`Y torques respecto del pivote O. El peso uno haría girar la barra en sentido antihorario: positivo, r uno por P uno. El peso dos la haría girar en sentido horario: negativo, r dos por P dos. La fuerza N actúa justo en el pivote, su brazo es cero y no produce torque. Queda: r uno P uno menos r dos P dos igual a cero.`]
+});
+
+S({title:'Las dos condiciones de equilibrio',
+html:`
+${N(90,170,1080,'<b>Cuerpo rígido:</b> tiene forma y tamaño definidos, y no se deforma.',0)}
+${node(90,260,500,'Equilibrio traslacional','ΣF_x = 0   ΣF_y = 0',1,'acc')}
+${node(680,260,500,'Equilibrio rotacional','Στ = 0   {{respecto de cualquier punto}}',2,'acc')}
+${LI(90,450,1,'<b>DCLE</b>: todas las fuerzas, dónde actúan y sus ángulos.',3)}
+${LI(90,510,2,'<b>Elige el punto</b> para los torques: donde actúan las incógnitas que no te piden.',4)}
+${LI(90,570,3,'<b>Escribe</b> ΣF<sub>x</sub>, ΣF<sub>y</sub> y Στ, con signos.',5)}
+${LI(90,630,4,'<b>Resuelve y revisa</b> que los números tengan sentido.',6)}`,
+beats:[
+`Formalicemos. Un cuerpo rígido es un cuerpo con forma y tamaño definidos, que no se deforma, como una barra de metal o una viga. Para él necesitamos dos condiciones de equilibrio.`,
+`La primera, el equilibrio traslacional: la suma de fuerzas es cero. En dos dimensiones son dos ecuaciones: la suma en x es cero y la suma en y es cero. Esto ya lo conocías.`,
+`La segunda, la nueva, el equilibrio rotacional: la suma de todos los torques es cero. Y algo muy útil: si el cuerpo está en equilibrio, la suma de torques es cero respecto de cualquier punto. Tú eliges el punto.`,
+`Con esto, la receta para todos los problemas de equilibrio. Paso uno: el DCLE. Dibuja cada fuerza en su punto de aplicación, con sus ángulos.`,
+`Paso dos: elige el punto para calcular torques. El truco es elegir el punto donde actúan las fuerzas que no conoces y no te preguntan, como la reacción de un pivote. Como su brazo es cero, desaparecen de la ecuación, y te queda una ecuación con una sola incógnita.`,
+`Paso tres: escribe las tres ecuaciones: suma de fuerzas en x, suma de fuerzas en y y suma de torques, con cuidado con los signos.`,
+`Paso cuatro: resuelve, y revisa que los números tengan sentido. Por ejemplo, que una tensión salga positiva.`]
+});
+
+S({title:'Ejemplo: jugando a equilibrar',
+html:`${svg(`
+${gnd(200,1120,530,0)}
+${cir(640,485,45,0,'obj')}
+${beam(486,432,1080,432,14,0)}
+<g data-b="0"><rect x="456" y="320" width="60" height="105" rx="10" class="obj"/></g>
+<g data-b="0"><rect x="1058" y="365" width="44" height="60" rx="8" class="obj"/></g>
+${lb(486,295,'padre · 800 N',0)}${lb(1080,340,'hijo · 250 N',0)}
+${dim(486,600,640,600,'0,7 m',1)}${dim(640,600,1080,600,'2,0 m',1)}
+${dot(783,432,2,7)}${lb(783,400,'centro de la vara',2,'acc')}
+${dim(640,650,783,650,'0,65 m',3)}
+`)}
+${N(90,165,1100,'Un padre (800 N) y su hijo (250 N) en los extremos de una vara homogénea apoyada en un tambor. Queda horizontal. ¿Cuál es la masa de la vara?',0)}`,
+beats:[
+`Ahora el ejemplo de la clase 19: jugando a equilibrar. Un padre, que pesa 800 newton, y su hijo, que pesa 250 newton, se sientan en una vara homogénea apoyada sobre un tambor. La vara queda en equilibrio, horizontal. La pregunta: ¿cuál es la masa de la vara?`,
+`Las distancias de la figura: el padre está a 0,7 metros del tambor, y el hijo a 2,0 metros del tambor, al otro lado. Suponemos que los dos están en los extremos de la vara. Con eso salen exactos los resultados de la clase.`,
+`La vara es homogénea, es decir, su masa está repartida de forma pareja. Entonces su peso actúa en su centro, justo a la mitad. El largo total es 0,7 más 2,0, o sea 2,7 metros. La mitad es 1,35 metros, medidos desde el extremo del padre.`,
+`¿A qué distancia del tambor está el centro? Desde el padre hasta el centro hay 1,35 metros, y desde el padre hasta el tambor hay 0,7. La diferencia es 0,65 metros. El centro de la vara está 0,65 metros a la derecha del tambor, del lado del hijo. Por eso el niño, que pesa menos, puede equilibrar al padre: la vara le ayuda.`]
+});
+
+S({title:'Jugando a equilibrar: la solución',
+html:`${svg(`
+${beam(250,260,750,260,12,0)}${piv(380,260,0,7)}
+${arr(380,262,380,160,'rea','N',0,[405,165])}
+${arr(250,262,250,350,'peso','F'+sb('1'),0,[215,345])}
+${arr(750,262,750,330,'peso','F'+sb('2'),0,[785,325])}
+${arr(500,262,500,330,'peso','Mg',0,[540,335])}
+${lb(250,380,'0,7',0)}${lb(500,380,'0,65',0)}${lb(750,380,'2,0',0)}
+`)}
+${Q(820,170,'N − Mg − F_1 − F_2 = 0',1,'xs')}
+${Q(90,430,'τ_1 − τ_2 − τ_P = 0',2,'s')}
+${Q(90,500,'800 · 0,7 − 250 · 2,0 − Mg · 0,65 = 0',3,'s')}
+${Q(90,570,'560 − 500 = τ_P = 60 [N·m]',4,'s')}
+${Q(760,430,`Mg = ${fr('60','0,65')} = 92,3 [N]`,5,'s')}
+${Q(760,530,'M = 9,23 [kg]',5,'box')}
+${Q(760,620,'N = 1142,3 [N]',6,'s acc')}`,
+beats:[
+`Hagamos el DCLE de la vara. En el tambor, la fuerza de apoyo N hacia arriba. En el extremo izquierdo, el peso del padre, F uno, hacia abajo. En el extremo derecho, el peso del hijo, F dos. Y en el centro de la vara, 0,65 metros a la derecha del tambor, el peso de la vara, M g.`,
+`Primera ecuación, fuerzas en y: lo que sube menos lo que baja es cero. N menos M g menos F uno menos F dos igual a cero. Tiene dos incógnitas, N y M, así que por ahora la guardamos.`,
+`Segunda ecuación: torques respecto del tambor. Elegimos el tambor porque ahí actúa N, que no conocemos: su brazo es cero y desaparece. El padre hace girar la vara en sentido antihorario: positivo. El hijo y el peso de la vara la hacen girar en sentido horario: negativos.`,
+`Como todas las fuerzas son verticales y la vara es horizontal, cada torque es la fuerza por la distancia horizontal al tambor. Queda: 800 por 0,7, menos 250 por 2,0, menos M g por 0,65, igual a cero.`,
+`800 por 0,7 da 560. 250 por 2,0 da 500. La diferencia es 60 newton metro. Ese es el torque que tiene que aportar el peso de la vara: tau P igual a 60.`,
+`Entonces M g por 0,65 es 60, y M g es 60 dividido por 0,65, que da 92,3 newton. Dividiendo por g igual a 10, la masa de la vara es 9,23 kilogramos.`,
+`Y ahora volvemos a la ecuación de fuerzas para obtener N: N es la suma de todos los pesos. 800 más 250 más 92,3 da 1142,3 newton. Ese es el resultado de la clase.`]
+});
+
+S({title:'Ejercicio: los dados y la regla',
+html:`${svg(`
+${beam(200,420,1080,420,12,0)}
+${cbox(205,330,80,80,'A','2m',0)}${cbox(1000,350,70,62,'B','m',0)}
+<polygon points="493,428 463,488 523,488" style="fill:#101016;stroke:#a19faa;stroke-width:2.5" data-b="1"/>
+${dim(245,520,493,520,'x',1)}${dim(245,580,1035,580,'L',0)}
+${arr(493,420,493,280,'rea','N',2,[520,285])}
+${arr(245,422,245,500,'peso','2mg',2,[200,470])}
+${arr(1035,422,1035,500,'peso','mg',2,[1080,470])}
+`)}
+${N(90,165,1100,'Regla de masa despreciable y largo L. Los dados de la izquierda tienen el doble de masa que el de la derecha. ¿Dónde va el apoyo y qué fuerza hace?',0)}
+${Q(90,640,'2mg · x = mg (L − x)',3,'s')}
+${Q(560,640,'x = L/3',4,'s box')}
+${Q(860,640,'N = 3mg',5,'s box')}`,
+beats:[
+`El ejercicio de la clase 19: una regla de masa despreciable y largo L. A la izquierda hay dados con el doble de masa que el dado de la derecha. Llamemos 2 m a los de la izquierda y m al de la derecha. Suponemos que los dados están en los extremos de la regla.`,
+`La pregunta es dónde poner el punto de apoyo para que la regla quede en equilibrio. Llamemos x a la distancia desde el extremo izquierdo hasta el apoyo. Entonces, desde el apoyo hasta el extremo derecho hay L menos x.`,
+`DCLE: la fuerza del apoyo N hacia arriba en el apoyo, el peso 2 m g en el extremo izquierdo y el peso m g en el extremo derecho. La regla no pesa, así que no hay más fuerzas.`,
+`Torques respecto del apoyo, así N desaparece. El lado izquierdo gira antihorario y el derecho horario. Para que se anulen: 2 m g por x igual a m g por L menos x.`,
+`Simplificamos m g, que está a los dos lados: 2 x igual a L menos x. Pasamos la x: 3 x igual a L. Entonces x es L partido por 3. El apoyo va a un tercio del largo, medido desde los dados pesados. Tiene sentido: el apoyo queda más cerca del lado que pesa más.`,
+`Y la fuerza del apoyo, con la ecuación de fuerzas: N menos 2 m g menos m g igual a cero. N es 3 m g: el apoyo sostiene todo el peso.`]
+});
+</script>
+<script>
+/* ===================== CH3 CLASE 20 PROBLEMA 1 ===================== */
+CH('Barra, cuerda y resorte','Clase 20 · Problema 1','Capítulo tres: el problema 1 de la clase 20. Es el problema de equilibrio más completo de la clase: tiene una barra con masa, una carga, un resorte y un soporte.');
+
+const C3={O:[220,240],L:470,ang:-30};C3.E=PT(C3.O[0],C3.O[1],C3.ang,C3.L);C3.Mi=PT(C3.O[0],C3.O[1],C3.ang,C3.L/2);C3.S=PT(C3.E[0],C3.E[1],113,280);
+function c3fig(b,showM=true){const {O,E,S}=C3;return `
+<g${ab(b)}><line x1="${O[0]-20}" y1="${O[1]-90}" x2="${O[0]-20}" y2="${O[1]+90}" class="ln"/>${wall(O[0]-20,O[1]-90,O[1]+90,null)}</g>
+${beam(O[0],O[1],E[0],E[1],20,b)}${piv(O[0],O[1],b)}
+${ceil(S[0]-70,S[0]+70,S[1],b)}${spr(null,S[0],S[1],E[0],E[1],b,10,13)}
+${showM?hang(E[0],E[1],60,64,54,'m',b):''}`}
+
+S({title:'El enunciado',
+html:`${svg(`${c3fig(0)}
+${lb(C3.Mi[0]-30,C3.Mi[1]+48,'M = 15 kg, largo L',0,'dim','end')}
+${ln(C3.E[0],C3.E[1],C3.E[0],C3.E[1]-140,2,'ln2 dashl')}
+${arc(C3.O[0],C3.O[1],70,-90,-30,'60°',2,98)}${ln(C3.O[0],C3.O[1],C3.O[0],C3.O[1]+110,2,'ln2 dashl')}
+${arc(C3.E[0],C3.E[1],60,113,150,'37°',2,90)}
+`)}
+${N(720,170,500,'Barra rígida homogénea de <b>M = 15 kg</b> y largo L, que gira en torno a un soporte en la pared.',0)}
+${N(720,300,500,'En el otro extremo cuelga <b>m = 4 kg</b> de una cuerda, y un <b>resorte</b> atado al mismo extremo mantiene el equilibrio.',1)}
+${N(720,450,500,'a) Fuerza del resorte. &nbsp;b) k, si se estiró 12 cm. &nbsp;c) Fuerza del soporte.',3)}`,
+beats:[
+`El problema 1 de la clase 20. Tenemos una barra rígida y homogénea, de masa 15 kilogramos y largo L. La barra puede girar en torno a un soporte en una pared vertical. Fíjate que no nos dan el largo: vamos a ver que no hace falta.`,
+`En el otro extremo de la barra cuelga una masa de 4 kilogramos, de una cuerda. Y un resorte, atado a ese mismo extremo, mantiene todo en equilibrio.`,
+`Los ángulos de la figura: la barra forma 60 grados con la vertical, o sea que baja 30 grados respecto de la horizontal. Y el resorte forma 37 grados con la barra. Estos dos ángulos son los que vamos a necesitar. La figura de la clase puede verse un poco distinta, pero estos ángulos son los que usa la solución.`,
+`Nos piden tres cosas. a, la fuerza que hace el resorte. b, la constante del resorte si se estiró 12 centímetros. Y c, la fuerza que hace el soporte sobre la barra.`]
+});
+
+S({title:'El DCLE de la barra',
+html:(()=>{const {O,E,Mi}=C3;const Fe=PT(E[0],E[1],113,150);return svg(`
+<g opacity=".45">${c3fig(null,false)}</g>
+${arr(Mi[0],Mi[1],Mi[0],Mi[1]+110,'peso','Mg',1,[Mi[0]+38,Mi[1]+95])}
+${arr(E[0],E[1],E[0],E[1]+110,'ten','mg',2,[E[0]+38,E[1]+95])}
+${arr(E[0],E[1],Fe[0],Fe[1],'ten','F'+sb('e'),3,[Fe[0]-30,Fe[1]+10])}
+${arc(E[0],E[1],50,0,113,'67°',3,78)}${ln(E[0],E[1],E[0]+90,E[1],3,'ln2 dashl')}
+${arr(O[0],O[1],O[0]+100,O[1],'rea','R'+sb('x'),4,[O[0]+110,O[1]-22])}
+${arr(O[0],O[1],O[0],O[1]-100,'rea','R'+sb('y'),4,[O[0]+30,O[1]-90])}
+`)})()
++N(720,170,500,'<b>Mg</b> en la mitad de la barra (es homogénea).',1)
++N(720,250,500,'<b>mg</b> en el extremo: la cuerda tira con el peso del bloque.',2)
++N(720,350,500,'<b>F<sub>e</sub></b> a lo largo del resorte: 67° sobre la horizontal.',3)
++N(720,450,500,'<b>R</b> del soporte: no sabemos su dirección, así que la separamos en <b>R<sub>x</sub></b> y <b>R<sub>y</sub></b>.',4)
++N(720,580,500,'Tres incógnitas: F<sub>e</sub>, R<sub>x</sub>, R<sub>y</sub>. Tres ecuaciones.',5,'acc'),
+beats:[
+`Hagamos el DCLE de la barra. Dibujamos solo la barra, y ponemos cada fuerza donde actúa.`,
+`Primero el peso de la barra, M g. Como la barra es homogénea, el peso actúa en su centro, en la mitad del largo: a L medios del soporte.`,
+`En el extremo cuelga el bloque. La cuerda tira de la barra hacia abajo. ¿Con cuánta fuerza? El bloque está quieto, así que la tensión de su cuerda es igual a su peso: m g.`,
+`También en el extremo, el resorte tira de la barra a lo largo de su propia dirección. Con los ángulos de la figura, esa dirección forma 67 grados con la horizontal. Los 67 salen de sumar: el resorte forma 37 grados con la barra, y la barra está 30 grados bajo la horizontal. 37 más 30 da 67.`,
+`Y en el soporte, la pared empuja a la barra con una fuerza R. No sabemos hacia dónde apunta, así que la separamos en dos componentes: R x, horizontal, y R y, vertical. Si al final alguna sale negativa, solo significa que apuntaba al revés.`,
+`Contemos: hay tres incógnitas, la fuerza del resorte, R x y R y. Y tenemos tres ecuaciones: fuerzas en x, fuerzas en y, y torques. Se puede resolver.`]
+});
+
+S({title:'a) Torques respecto del soporte',
+html:`${svg(`<g opacity=".5">${c3fig(null,false)}</g>
+${arcA(C3.O[0],C3.O[1],60,-70,40,'tor','',0)}${lb(C3.O[0]+20,C3.O[1]+105,'eje: el soporte',0,'acc','start')}`)}
+${Q(640,165,'F_e L sin 143° − m g L sin 60° − M g {{(L/2)}} sin 60° = 0',1,'xs')}
+${N(640,225,580,'F<sub>e</sub> gira antihorario (+). Los pesos giran horario (−). R no aparece.',1)}
+${Q(640,320,'F_e sin 143° = (m + M/2) g sin 60°',3,'s')}
+${Q(640,410,`F_e = ${fr('sin 60°','sin 143°')} (M/2 + m) g`,4,'s')}
+${Q(640,510,`F_e = ${fr('0,866','0,602')} · 11,5 · 10`,5,'s')}
+${Q(640,610,'F_e ≈ 166 [N]',5,'box')}`,
+beats:[
+`Empezamos con los torques, respecto del soporte. ¿Por qué el soporte? Porque ahí actúan R x y R y, que no conocemos. Su brazo es cero, así que no aparecen en la ecuación. Nos queda una sola incógnita: la fuerza del resorte.`,
+`Escribimos cada torque con r F seno theta. La fuerza del resorte: r es L, todo el largo, y el ángulo entre la barra y el resorte es 143 grados. Gira la barra en sentido antihorario, hacia arriba: positivo. El bloque: r es L, y el ángulo entre la barra y la vertical es 60 grados. Gira horario: negativo. El peso de la barra: r es L medios, también con 60 grados, y también negativo.`,
+`Un detalle del ángulo del resorte: 143 es el ángulo entre r, que apunta desde el soporte hacia el extremo, y la fuerza. Es el suplemento de los 37 grados de la figura. Y como el seno de 143 es igual al seno de 37, da lo mismo usar cualquiera de los dos.`,
+`Ahora la magia: L aparece en todos los términos, así que la dividimos y desaparece. Por eso no nos dieron el largo. Ordenando: F e por seno de 143 es igual a m más M medios, por g, por seno de 60.`,
+`Despejamos F e: es seno de 60 dividido por seno de 143, por M medios más m, por g.`,
+`Reemplazamos números: seno de 60 es 0,866 y seno de 143 es 0,602. M medios más m es 7,5 más 4, o sea 11,5 kilogramos. Y g es 10. El resultado es 165,5, que redondeamos a 166 newton, igual que en la clase.`]
+});
+
+S({title:'b) La constante del resorte y c) el soporte',
+html:`
+${Q(90,170,`k = ${fr('F_e','Δx')} = ${fr('166 [N]','0,12 [m]')} ≈ 1,38 · 10^3 [N/m]`,0,'s')}
+${N(90,265,560,'La clase da 1379 N/m: es lo que sale sin redondear F<sub>e</sub>.',0)}
+${Q(90,360,'ΣF_x:  R_x − F_e cos 67° = 0',1,'s')}
+${Q(90,430,'R_x = 166 · 0,391 = 64,9 [N]',2,'s')}
+${Q(90,520,'ΣF_y:  R_y + F_e sin 67° − M g − m g = 0',3,'s')}
+${Q(90,590,'R_y = 190 − 166 · 0,921 = 37,2 [N]',4,'s')}
+${Q(820,400,'R = √(R_x^2 + R_y^2)',5,'s')}
+${Q(820,490,'R = 74,8 [N]',5,'box')}
+${N(820,590,400,'Las dos salieron positivas: los sentidos supuestos eran correctos.',6)}`,
+beats:[
+`Parte b: la constante del resorte. Por la ley de Hooke, la fuerza del resorte es k por lo que se estiró. Entonces k es la fuerza dividida por el estiramiento: 166 newton dividido por 0,12 metros. Ojo con pasar los 12 centímetros a metros. Da cerca de 1380 newton por metro. La clase da 1379, que es lo que sale si no redondeas la fuerza antes.`,
+`Parte c: la fuerza del soporte. Ahora sí usamos las ecuaciones de fuerzas. En x: R x, que supusimos hacia la derecha, menos la componente horizontal del resorte, que apunta hacia la pared. Esa componente es F e por coseno de 67, porque 67 es el ángulo con la horizontal.`,
+`Despejamos: R x es 166 por coseno de 67, que es 0,391. Da 64,9 newton.`,
+`En y: R y hacia arriba, más la componente vertical del resorte, F e por seno de 67, que también es hacia arriba, menos los dos pesos, igual a cero. Los pesos suman 15 más 4, o sea 19 kilogramos, por 10: 190 newton.`,
+`Despejamos R y: 190 menos 166 por 0,921, que da 37,2 newton.`,
+`La magnitud de la fuerza del soporte se obtiene con Pitágoras: la raíz de R x al cuadrado más R y al cuadrado. Da 74,8 newton.`,
+`Las dos componentes salieron positivas. Eso confirma que los sentidos que supusimos en el DCLE eran los correctos.`]
+});
+
+/* ===================== CH4 CLASE 20 EJERCICIO 1 ===================== */
+CH('Barra colgada del techo','Clase 20 · Ejercicio 1','Capítulo cuatro: el ejercicio 1 de la clase 20. Es todo con letras, sin números. Es muy buen entrenamiento para el control.');
+
+const C4={H:[330,180],L:420,th:35};C4.d=-90+C4.th;C4.E=PT(C4.H[0],C4.H[1],C4.d,C4.L);C4.C=PT(C4.H[0],C4.H[1],C4.d,C4.L*2/7);C4.B=PT(C4.H[0],C4.H[1],C4.d,C4.L*6/7);C4.Mi=PT(C4.H[0],C4.H[1],C4.d,C4.L/2);
+C4.A=PT(C4.C[0],C4.C[1],C4.th,220);
+function c4fig(b){const {H,E,C,B,A}=C4;return `${ceil(H[0]-120,H[0]+80,H[1],b)}${beam(H[0],H[1],E[0],E[1],18,b)}${piv(H[0],H[1],b)}
+<g${ab(b)}><line x1="${C[0]}" y1="${C[1]}" x2="${A[0]}" y2="${A[1]}" class="ln2" style="stroke:#cfcdd8"/><circle cx="${A[0]}" cy="${A[1]}" r="6" class="dot"/></g>
+${hang(B[0],B[1],50,56,48,'m',b)}`}
+
+S({title:'El enunciado',
+html:`${svg(`${c4fig(0)}
+${ln(C4.H[0],C4.H[1],C4.H[0],C4.H[1]+200,1,'ln2 dashl')}${arc(C4.H[0],C4.H[1],80,-90,C4.d,'θ',1,108)}
+${dot(C4.C[0],C4.C[1],2,6)}${lb(C4.C[0]+22,C4.C[1]+26,'2L/7',2,'acc','start')}
+${dot(C4.B[0],C4.B[1],2,6)}${lb(C4.B[0]+22,C4.B[1]-6,'6L/7',2,'acc','start')}
+`)}
+${N(720,170,500,'Barra homogénea de masa <b>M</b> y largo <b>L</b>, colgada del techo con una bisagra, a un ángulo <b>θ</b> de la vertical.',0)}
+${N(720,330,500,'Una cuerda <b>perpendicular a la barra</b>, a 2L/7 de la bisagra, la sostiene. Un bloque <b>m</b> cuelga a 6L/7.',2)}
+${N(720,500,500,'a) DCLE y DCL. b) Ecuaciones. c) Tensión T. d) Reacción en la bisagra.',3)}`,
+beats:[
+`El ejercicio 1 de la clase 20. Una barra homogénea de masa M y largo L cuelga del techo, sujeta con una bisagra.`,
+`La barra no cuelga vertical: forma un ángulo theta con la vertical. Algo la está sosteniendo inclinada.`,
+`Lo que la sostiene es una cuerda que está amarrada a la barra a 2 L séptimos de la bisagra, y que tira perpendicular a la barra. Además, de la barra cuelga un bloque de masa m, a 6 L séptimos de la bisagra.`,
+`Nos piden el DCLE de la barra y el DCL del bloque, las ecuaciones de equilibrio, la tensión de la cuerda perpendicular y las componentes de la reacción en la bisagra. Todo en función de M, m, g, L y theta. En tu figura la barra puede estar inclinada hacia el otro lado; el método es el mismo.`]
+});
+
+S({title:'DCLE y ecuaciones',
+html:(()=>{const {H,C,B,Mi}=C4,Td=PT(C[0],C[1],C4.th,130);return svg(`
+<g opacity=".45">${ceil(H[0]-120,H[0]+80,H[1],null)}${beam(H[0],H[1],C4.E[0],C4.E[1],18,null)}</g>${piv(H[0],H[1],null)}
+${arr(Mi[0],Mi[1],Mi[0],Mi[1]+100,'peso','Mg',0,[Mi[0]-38,Mi[1]+90])}
+${arr(B[0],B[1],B[0],B[1]+100,'ten','mg',0,[B[0]+40,B[1]+90])}
+${arr(C[0],C[1],Td[0],Td[1],'ten','T',0,[Td[0]+22,Td[1]-12])}
+${arr(H[0],H[1],H[0]+100,H[1],'rea','R'+sb('x'),0,[H[0]+112,H[1]+26])}
+${arr(H[0],H[1],H[0],H[1]-62,'rea','R'+sb('y'),0,[H[0]-34,H[1]-50])}
+`)})()
++N(90,600,560,'Bloque: T<sub>2</sub> = m g. Por eso la barra recibe m g en 6L/7.',0)
++Q(640,170,'ΣF_x:  R_x + T cos θ = 0',1,'s')
++Q(640,250,'ΣF_y:  R_y + T sin θ − M g − m g = 0',2,'s')
++Q(640,350,'Στ_{bisagra}:  T {{(2L/7)}} − M g {{(L/2)}} sin θ − m g {{(6L/7)}} sin θ = 0',3,'xs')
++N(640,410,580,'T es perpendicular a la barra: θ = 90°, sin 90° = 1. Los pesos forman θ con la barra.',3),
+beats:[
+`El DCL del bloque es simple: su peso hacia abajo y la tensión de su cuerda hacia arriba. Como está quieto, esa tensión vale m g. Entonces la barra recibe una fuerza m g hacia abajo en el punto 6 L séptimos. En la barra, además: su peso M g en la mitad, la tensión T perpendicular a la barra en 2 L séptimos, y la reacción de la bisagra, con componentes R x y R y.`,
+`Fuerzas en x. Una fuerza perpendicular a una barra que forma theta con la vertical, forma theta con la horizontal. Entonces su componente horizontal es T coseno theta, y su componente vertical es T seno theta. La ecuación en x: R x más T coseno theta igual a cero.`,
+`Fuerzas en y: R y más T seno theta, menos los dos pesos, M g y m g, igual a cero.`,
+`Torques respecto de la bisagra, para que R desaparezca. La tensión es perpendicular a la barra, así que su seno es uno: su torque es T por 2 L séptimos, y es positivo porque levanta la barra. Cada peso es vertical, y la barra forma theta con la vertical, así que el ángulo entre r y el peso es theta. El peso de la barra da M g por L medios por seno theta, y el bloque da m g por 6 L séptimos por seno theta. Los dos hacen bajar la barra: negativos.`]
+});
+
+S({title:'c) Tensión y d) reacción en la bisagra',
+html:`
+${Q(90,170,'T {{(2L/7)}} = g sin θ {{(M L/2 + 6 m L/7)}}',0,'s')}
+${Q(90,260,`T = ${fr('7','2L')} · g sin θ · L (M/2 + 6m/7)`,1,'s')}
+${Q(90,370,'T = (7M/4 + 3m) g sin θ',2,'l box')}
+${Q(90,490,'R_x = − T cos θ',3)}
+${Q(90,580,'R_y = (M + m) g − T sin θ',4)}
+${N(720,470,500,'R<sub>x</sub> negativo: la bisagra empuja en sentido contrario al que supusimos.',3)}
+${N(720,590,500,'Revisa unidades: todo es masa por g, o sea newton.',5)}`,
+beats:[
+`Despejemos la tensión desde la ecuación de torques. Pasamos los pesos al otro lado y sacamos g seno theta como factor común: T por 2 L séptimos es igual a g seno theta, por M L medios más 6 m L séptimos.`,
+`Multiplicamos por 7 y dividimos por 2 L para dejar T sola. La L de abajo se cancela con la L de arriba.`,
+`Hacemos la cuenta dentro del paréntesis: 7 medios por M medios da 7 M cuartos. Y 7 medios por 6 m séptimos da 3 m. Resultado: T es igual a 7 M cuartos más 3 m, todo por g seno theta.`,
+`Ahora las reacciones. De la ecuación en x: R x es menos T coseno theta. El signo menos dice que la bisagra empuja hacia el lado contrario del que dibujamos.`,
+`De la ecuación en y: R y es M más m, por g, menos T seno theta. Si quieres, reemplazas T por la expresión de arriba.`,
+`Un buen hábito: revisa las unidades. Todo queda como masa por g, o sea newton. Si en tu resultado aparece una L suelta, hay un error.`]
+});
+
+/* ===================== CH5 CLASE 20 EJERCICIO 2 ===================== */
+CH('Barra en una cavidad semiesférica','Clase 20 · Ejercicio 2','Capítulo cinco: el ejercicio 2 de la clase 20. Es el más difícil de la clase, por la geometría. Vamos con calma.');
+
+const C5={O:[330,330],R:190,al:25};C5.B=[C5.O[0]+C5.R,C5.O[1]];C5.AB=2*C5.R*Math.cos(C5.al*RAD);C5.A=PT(C5.B[0],C5.B[1],180+C5.al,C5.AB);
+C5.L=4*C5.R*Math.cos(2*C5.al*RAD)/Math.cos(C5.al*RAD);C5.E=PT(C5.A[0],C5.A[1],C5.al,C5.L);C5.G=PT(C5.A[0],C5.A[1],C5.al,C5.L/2);
+function c5bowl(b){const {O,R}=C5;return `<g${ab(b)}><path d="M${O[0]-R} ${O[1]} A${R} ${R} 0 0 0 ${O[0]+R} ${O[1]}" class="ln"/><line x1="${O[0]-R-40}" y1="${O[1]}" x2="${O[0]-R}" y2="${O[1]}" class="ln"/><line x1="${O[0]+R}" y1="${O[1]}" x2="${O[0]+R+60}" y2="${O[1]}" class="ln"/></g>`}
+
+S({title:'El enunciado y la geometría',
+html:`${svg(`${c5bowl(0)}${beam(C5.A[0],C5.A[1],C5.E[0],C5.E[1],14,0)}
+${tx(C5.A[0]-24,C5.A[1]+14,'A',0,'lab')}${tx(C5.B[0]+10,C5.B[1]+30,'B',0,'lab')}
+${dot(C5.O[0],C5.O[1],1)}${tx(C5.O[0]-6,C5.O[1]-26,'O',1,'lab')}
+${ln(C5.O[0],C5.O[1],C5.A[0],C5.A[1],1,'ln','stroke:var(--acc);stroke-width:2')}${ln(C5.O[0],C5.O[1],C5.B[0],C5.B[1],1,'ln','stroke:var(--acc);stroke-width:2')}
+${tx((C5.O[0]+C5.A[0])/2-20,(C5.O[1]+C5.A[1])/2,'R',1,'lab')}${tx((C5.O[0]+C5.B[0])/2,C5.O[1]-22,'R',1,'lab')}
+${arc(C5.B[0],C5.B[1],60,180,180+C5.al,'α',2,88)}${arc(C5.A[0],C5.A[1],60,C5.al,2*C5.al,'α',2,88)}
+${ln(C5.A[0],C5.A[1],C5.A[0]+120,C5.A[1],3,'ln2 dashl')}${arc(C5.A[0],C5.A[1],110,0,2*C5.al,'2α',3,140)}
+`)}
+${N(740,165,500,'Barra homogénea de masa M en equilibrio dentro de una cavidad semiesférica <b>lisa</b> de radio R. Forma un ángulo α con la horizontal.',0)}
+${N(740,330,500,'O es el centro. OA = OB = R: el triángulo OAB es <b>isósceles</b>.',1)}
+${N(740,440,500,'OB es horizontal, así que el ángulo en B es α. Por isósceles, el ángulo en A también es α.',2)}
+${N(740,560,500,'OA forma <b>2α</b> con la horizontal. Y AB = 2R cos α.',3,'acc')}`,
+beats:[
+`El ejercicio 2 de la clase 20. Una barra homogénea de masa M está en equilibrio dentro de una cavidad semiesférica lisa, de radio R. Un extremo, A, se apoya en la superficie interior. Y la barra se apoya en el borde de la cavidad, en el punto B, y sobresale. La barra forma un ángulo alfa con la horizontal.`,
+`Lo difícil es la geometría, así que la hacemos primero. Marcamos el centro O de la semiesfera. O está a la altura del borde. La distancia de O a A es R, porque A está sobre la esfera. Y la distancia de O a B también es R. Entonces el triángulo O, A, B tiene dos lados iguales: es isósceles.`,
+`El lado O B es horizontal, porque O y B están a la misma altura. La barra baja desde B con ángulo alfa respecto de la horizontal. Entonces el ángulo del triángulo en B es alfa. Y en un triángulo isósceles, los ángulos de la base son iguales: el ángulo en A también es alfa.`,
+`Dos consecuencias. Primera: la línea de A hacia O forma un ángulo de dos alfa con la horizontal, porque es alfa de la barra más alfa del triángulo. Segunda: el largo A B. Si bajas una perpendicular desde O hasta la barra, cae justo en la mitad de A B, y cada mitad mide R coseno alfa. Entonces A B es 2 R coseno alfa.`]
+});
+
+S({title:'Las fuerzas de contacto',
+html:(()=>{const {A,B,G}=C5,NA=PT(A[0],A[1],2*C5.al,150),NB=PT(B[0],B[1],C5.al+90,130);return svg(`
+<g opacity=".4">${c5bowl(null)}</g>${beam(A[0],A[1],C5.E[0],C5.E[1],14,null)}
+${arr(A[0],A[1],NA[0],NA[1],'rea','N'+sb('A'),0,[NA[0]+10,NA[1]-24])}
+${arr(B[0],B[1],NB[0],NB[1],'rea','N'+sb('B'),1,[NB[0]-28,NB[1]-14])}
+${arr(G[0],G[1],G[0],G[1]+120,'peso','Mg',2,[G[0]+36,G[1]+104])}
+`)})()
++N(740,165,500,'<b>N<sub>A</sub></b>: superficie lisa, perpendicular a la esfera, apunta al centro O. Ángulo <b>2α</b>.',0)
++N(740,280,500,'<b>N<sub>B</sub></b>: en el borde, perpendicular a la barra. Ángulo <b>90° + α</b>.',1)
++N(740,380,500,'<b>Mg</b> en la mitad de la barra, a L/2 de A.',2)
++Q(740,480,'ΣF_x:  N_A cos 2α − N_B sin α = 0',3,'xs')
++Q(740,550,'ΣF_y:  N_A sin 2α + N_B cos α − M g = 0',4,'xs'),
+beats:[
+`Ahora el DCLE. En A, la superficie es lisa, sin roce, así que solo empuja perpendicular a ella. Perpendicular a una esfera significa a lo largo del radio, apuntando al centro O. Esa fuerza, N A, forma dos alfa con la horizontal.`,
+`En B, la barra se apoya en el borde. La fuerza ahí es perpendicular a la barra, como dice el enunciado. Como la barra forma alfa con la horizontal, N B forma 90 más alfa: apunta hacia arriba y un poco hacia la izquierda.`,
+`Y el peso, M g, en la mitad de la barra, a L medios del extremo A.`,
+`Fuerzas en x. N A tiene componente horizontal N A coseno de dos alfa, hacia la derecha. N B tiene componente horizontal N B seno alfa, hacia la izquierda. Se anulan.`,
+`Fuerzas en y. N A seno de dos alfa hacia arriba, más N B coseno alfa hacia arriba, menos el peso, igual a cero.`]
+});
+
+S({title:'Resolver: las normales y el largo L',
+html:`
+${Q(90,165,`N_A = N_B ${fr('sin α','cos 2α')}`,0,'s')}
+${Q(90,255,`N_B ${fr('sin α sin 2α + cos α cos 2α','cos 2α')} = M g`,1,'s')}
+${N(90,330,560,'Con cos 2α = cos²α − sin²α y sin 2α = 2 sin α cos α, el numerador vale <b>cos α</b>.',2)}
+${Q(90,430,`N_B = M g ${fr('cos 2α','cos α')}`,3,'s box')}
+${Q(90,530,'N_A = M g tan α',3,'s box')}
+${Q(740,165,'Στ_A:  N_B · 2R cos α − M g {{(L/2)}} cos α = 0',4,'xs')}
+${Q(740,270,`L = ${fr('4 R N_B','M g')}`,5,'s')}
+${Q(740,380,`L = ${fr('4R cos 2α','cos α')}`,5,'l box')}
+${N(740,500,500,'N<sub>A</sub> pasa por A: brazo cero. N<sub>B</sub> es perpendicular a la barra, a 2R cos α de A. El peso es vertical: su brazo es (L/2) cos α.',4)}`,
+beats:[
+`Resolvamos. De la ecuación en x despejamos N A: es N B por seno alfa dividido por coseno de dos alfa.`,
+`Lo reemplazamos en la ecuación en y y sacamos N B como factor común. Queda N B, por una fracción, igual a M g. El numerador de la fracción es seno alfa por seno dos alfa, más coseno alfa por coseno dos alfa.`,
+`Aquí se usa la ayuda del enunciado. Seno de dos alfa es 2 seno alfa coseno alfa, y coseno de dos alfa es coseno cuadrado menos seno cuadrado. Si reemplazas y sacas coseno alfa de factor común, adentro queda seno cuadrado más coseno cuadrado, que es uno. El numerador completo vale coseno alfa.`,
+`Entonces N B es M g por coseno de dos alfa dividido por coseno alfa. Y volviendo a la primera ecuación, N A es M g por la tangente de alfa.`,
+`Por último, el largo. Torques respecto de A, porque ahí actúa N A y desaparece. N B es perpendicular a la barra y está a una distancia 2 R coseno alfa de A: su torque es N B por 2 R coseno alfa. El peso es vertical y está a L medios de A; su brazo, la distancia horizontal, es L medios por coseno alfa.`,
+`Despejamos L y reemplazamos N B. Los M g se cancelan, y los coseno alfa se simplifican. Resultado: L es 4 R coseno de dos alfa dividido por coseno alfa. El largo de la barra solo depende del radio y del ángulo.`]
+});
+
+S({title:'Propuesto: la varilla a punto de deslizar',
+html:`
+${N(90,170,1100,'Varilla uniforme de masa M y largo L, apoyada en A sobre el piso con roce estático μ, y unida a una cuerda en B. Está <b>a punto de deslizar</b>.',0)}
+${LI(90,290,1,'<b>DCLE</b>: peso en L/2, tensión en B, y en A la normal <b>N</b> y el roce <b>f</b>.',1)}
+${LI(90,360,2,'"A punto de deslizar" significa roce <b>máximo</b>: f = μ N.',2)}
+${LI(90,430,3,'Torques <b>respecto de A</b>: N y f desaparecen y despejas T.',3)}
+${LI(90,500,4,'ΣF<sub>y</sub> da <b>N</b>. ΣF<sub>x</sub> conecta f con la tensión.',4)}
+${N(90,600,1100,'La figura de este propuesto no viene con números en la clase, así que aquí queda el método. Practícalo con el libro, capítulo 7.',5,'acc')}`,
+beats:[
+`La clase 20 termina con un propuesto: una varilla uniforme de masa M y largo L, apoyada en un extremo A sobre el piso, que tiene roce estático mu, y unida a una cuerda en el otro extremo B. La varilla está a punto de deslizar. Te piden el DCLE, las ecuaciones y la normal.`,
+`El DCLE: el peso en la mitad, la tensión en B a lo largo de la cuerda, y en A dos fuerzas del piso: la normal, perpendicular al piso, y el roce, paralelo al piso.`,
+`La frase clave es "a punto de deslizar". Significa que el roce estático llegó a su valor máximo. Entonces f es igual a mu por N. Esa ecuación extra es la que permite resolver.`,
+`Para los torques, el mejor punto es A: ahí actúan la normal y el roce, que no conocemos. Desaparecen, y despejas la tensión.`,
+`Después, la suma de fuerzas en y te da la normal, y la suma en x conecta el roce con la componente horizontal de la tensión.`,
+`Este propuesto no tiene números en la clase, así que aquí dejamos el método. Si quieres practicar más, el capítulo 7 del libro del curso tiene muchos problemas iguales.`]
+});
+
+/* ===================== CH6 AYUDANTÍA 10 P1 ===================== */
+CH('Viga, cable y bloque','Ayudantía 10 · Problema 1','Capítulo seis: la ayudantía 10, problema 1. Es el tipo de problema más probable en el control: una viga, un cable y una carga.');
+
+const A1={O:[170,580],L:460,a:30};A1.E=PT(A1.O[0],A1.O[1],A1.a,A1.L);A1.Mi=PT(A1.O[0],A1.O[1],A1.a,A1.L/2);
+A1.W=(()=>{const t=(A1.E[0]-(A1.O[0]-20))/Math.cos(15*RAD);return PT(A1.E[0],A1.E[1],165,t)})();
+function a1fig(b,blkOn=true){const {O,E,W}=A1;return `<g${ab(b)}><line x1="${O[0]-20}" y1="${W[1]-40}" x2="${O[0]-20}" y2="${O[1]+40}" class="ln"/>${wall(O[0]-20,W[1]-40,O[1]+40,null)}</g>
+${beam(O[0],O[1],E[0],E[1],18,b)}${piv(O[0],O[1],b)}
+<g${ab(b)}><line x1="${E[0]}" y1="${E[1]}" x2="${W[0]}" y2="${W[1]}" class="ln2" style="stroke:#cfcdd8;stroke-width:2.5"/></g>
+${blkOn?hang(E[0],E[1],46,90,56,'300 N',b):''}`}
+
+S({title:'El enunciado',
+html:`${svg(`${a1fig(0)}
+${ln(A1.O[0],A1.O[1],A1.O[0]+150,A1.O[1],1,'ln2 dashl')}${arc(A1.O[0],A1.O[1],80,0,30,'30°',1,108)}
+${arc(A1.E[0],A1.E[1],60,165,210,'45°',1,92)}
+${lb(A1.Mi[0]+30,A1.Mi[1]+40,'L = 4,00 m · 150 N',0,'dim','start')}
+`)}
+${N(720,165,500,'Viga homogénea de <b>4,00 m</b> que pesa <b>150 N</b>, inclinada <b>30°</b> sobre la horizontal.',0)}
+${N(720,280,500,'Un cable ideal forma <b>45° con la viga</b>. En el extremo libre cuelga un bloque de <b>300 N</b>.',1)}
+${N(720,400,500,'a) DCLE. b) Ecuaciones. c) Tensión y reacción en el pivote. d) Si T<sub>máx</sub> = 600 N, ¿cuánto peso extra resiste?',2)}`,
+beats:[
+`El problema 1 de la ayudantía 10. Una viga homogénea de 4,00 metros, que pesa 150 newton, está unida a la pared con un pivote y se mantiene inclinada 30 grados sobre la horizontal.`,
+`La sostiene un cable ideal, amarrado en el extremo libre de la viga, que forma un ángulo de 45 grados con la viga. Y en ese mismo extremo cuelga un bloque de 300 newton.`,
+`Nos piden el DCLE, las ecuaciones de equilibrio, la tensión del cable y la reacción en el pivote. Y al final, si el cable se corta con 600 newton, cuánto peso extra se le puede agregar a la carga.`]
+});
+
+S({title:'a) El DCLE y los ángulos',
+html:(()=>{const {O,E,Mi}=A1,Td=PT(E[0],E[1],165,170);return svg(`
+<g opacity=".4">${a1fig(null,false)}</g>
+${arr(E[0],E[1],Td[0],Td[1],'ten','T',0,[Td[0]-8,Td[1]-26])}
+${arc(E[0],E[1],55,165,210,'45°',0,85)}
+${ln(E[0],E[1],E[0]-120,E[1],1,'ln2 dashl')}${arc(E[0],E[1],100,165,180,'15°',1,126)}
+${arr(Mi[0],Mi[1],Mi[0],Mi[1]+100,'peso','150',2,[Mi[0]+38,Mi[1]+86])}
+${arr(E[0],E[1],E[0],E[1]+110,'peso','300',2,[E[0]+38,E[1]+96])}
+${arr(O[0],O[1],O[0]+100,O[1],'rea','R'+sb('x'),3,[O[0]+108,O[1]+26])}
+${arr(O[0],O[1],O[0],O[1]-100,'rea','R'+sb('y'),3,[O[0]-30,O[1]-90])}
+`)})()
++N(720,165,500,'El cable tira desde el extremo, hacia la pared. Forma 45° con la viga.',0)
++N(720,270,500,'La viga está a 30°: el cable forma <b>15°</b> con la horizontal (45° − 30°).',1)
++N(720,400,500,'Pesos: 150 N en la mitad (2,00 m) y 300 N en el extremo.',2)
++N(720,500,500,'Reacción del pivote: <b>R<sub>x</sub></b> y <b>R<sub>y</sub></b>.',3),
+beats:[
+`El DCLE de la viga. Empecemos por el cable. El cable tira de la viga desde el extremo libre, hacia la pared, a lo largo de su propia dirección. Forma 45 grados con la viga.`,
+`¿Qué ángulo forma el cable con la horizontal? La viga, vista desde el extremo, apunta hacia el pivote, hacia abajo a la izquierda, 30 grados bajo la horizontal. El cable está 45 grados "más arriba" que esa línea. 45 menos 30 da 15: el cable sube 15 grados sobre la horizontal, hacia la pared.`,
+`Los pesos. El de la viga, 150 newton, en su centro, a 2,00 metros del pivote. Y el del bloque, 300 newton, en el extremo, a 4,00 metros.`,
+`Y la reacción del pivote, con dos componentes que suponemos: R x hacia afuera de la pared, y R y hacia arriba.`]
+});
+
+S({title:'b) y c) Torques: la tensión del cable',
+html:`${svg(`<g opacity=".45">${a1fig(null)}</g>${arcA(A1.O[0],A1.O[1],60,90,200,'tor','',0)}`)}
+${N(660,160,560,'Brazos de los pesos (son verticales): la <b>distancia horizontal</b> al pivote.',0)}
+${Q(660,240,'d_{150} = 2,00 cos 30°    d_{300} = 4,00 cos 30°',0,'xs')}
+${N(660,300,580,'Cable: ángulo entre la viga y el cable = 45°.',1)}
+${Q(660,360,'T · 4,00 · sin 45° =',2,'xs')}${Q(660,405,'150 · 2,00 cos 30° + 300 · 4,00 cos 30°',2,'xs')}
+${Q(660,470,`T = ${fr('(75 + 300) cos 30°','sin 45°')}`,3,'s')}
+${Q(660,560,'T ≈ 459 [N]',3,'box')}`,
+beats:[
+`Torques respecto del pivote, para que la reacción desaparezca. Los pesos son verticales, así que usamos la forma del brazo de palanca: el brazo es la distancia horizontal desde el pivote hasta la línea del peso. Para el peso de la viga: 2,00 por coseno de 30. Para el bloque: 4,00 por coseno de 30. Los dos hacen girar la viga en sentido horario, hacia abajo.`,
+`Para el cable usamos r F seno theta. r es 4,00 metros, todo el largo. Y el ángulo entre la viga y el cable es 45 grados. Su torque es antihorario: levanta la viga.`,
+`La ecuación de torques: T por 4,00 por seno de 45, igual a 150 por 2,00 por coseno de 30, más 300 por 4,00 por coseno de 30.`,
+`Dividimos todo por 4,00. Queda T por seno de 45 igual a 75 más 300, por coseno de 30. Entonces T es 375 por 0,866 dividido por 0,707. El resultado es 459 newton.`]
+});
+
+S({title:'c) La reacción y d) el peso máximo',
+html:`
+${Q(90,165,'T_x = − T cos 15° = − 444 [N]     T_y = T sin 15° = 119 [N]',0,'xs')}
+${Q(90,250,'ΣF_x:  R_x − 444 = 0   ⇒   R_x = 444 [N]',1,'xs')}
+${Q(90,320,'ΣF_y:  R_y + 119 − 150 − 300 = 0   ⇒   R_y = 331 [N]',2,'xs')}
+${Q(90,400,'R = √(444^2 + 331^2) ≈ 554 [N]',3,'s')}
+${Q(720,480,'600 · sin 45° = (75 + P) cos 30°',4,'xs')}
+${Q(720,550,'P = 415 [N]',5,'s')}
+${Q(720,620,'extra = 415 − 300 ≈ 115 [N]',5,'s box')}
+${N(90,500,560,'d) Con T = 600 N, el torque del cable alcanza para un bloque P de como máximo:',4)}`,
+beats:[
+`Ahora la reacción. Primero descomponemos la tensión: el cable forma 15 grados con la horizontal y apunta hacia la pared. Su componente horizontal es T coseno 15, hacia la pared, o sea negativa: menos 444 newton. Su componente vertical es T seno 15, hacia arriba: 119 newton.`,
+`Fuerzas en x: R x menos 444 igual a cero. R x es 444 newton, hacia afuera de la pared. Tiene sentido: el cable tira la viga contra la pared, y la pared empuja de vuelta.`,
+`Fuerzas en y: R y más 119, menos 150, menos 300, igual a cero. R y es 331 newton hacia arriba.`,
+`Y la magnitud total de la reacción, con Pitágoras: cerca de 554 newton.`,
+`Parte d. El cable aguanta como máximo 600 newton. Repetimos la ecuación de torques, pero con T igual a 600 y con un bloque de peso desconocido P: 600 por seno de 45 es igual a 75 más P, por coseno de 30. Recuerda que el 75 viene del peso de la viga, 150 por 2,00 dividido por 4,00.`,
+`600 por 0,707 dividido por 0,866 da 490. Le restamos 75 y queda P igual a 415 newton. Como ya hay 300, el peso adicional máximo es 415 menos 300: unos 115 newton. Si agregas más, el cable se corta.`]
+});
+
+/* ===================== CH7 AYUDANTÍA 10 P2 ===================== */
+CH('Viga colgada de dos cables','Ayudantía 10 · Problema 2','Capítulo siete: el problema 2 de la ayudantía 10. Una viga inclinada que cuelga de dos cables verticales, con dos cargas. Tiene un truco muy bonito con el ángulo.');
+
+const A2={O:[200,540],L:600,a:30};const a2p=d=>PT(A2.O[0],A2.O[1],A2.a,d*150);A2.E=a2p(4);A2.c1=a2p(.5);A2.c2=a2p(3.5);A2.m1=a2p(1.4);A2.m2=a2p(2.8);A2.G=a2p(2);
+function a2fig(b){const {O,E,c1,c2,m1,m2}=A2;return `${ceil(150,820,150,b)}${beam(O[0],O[1],E[0],E[1],18,b)}
+<g${ab(b)}><line x1="${c1[0]}" y1="150" x2="${c1[0]}" y2="${c1[1]}" class="ln2" style="stroke:#cfcdd8;stroke-width:2.5"/><line x1="${c2[0]}" y1="150" x2="${c2[0]}" y2="${c2[1]}" class="ln2" style="stroke:#cfcdd8;stroke-width:2.5"/></g>
+${hang(m1[0],m1[1],40,56,46,'8',b,'A')}${hang(m2[0],m2[1],40,60,52,'10',b,'B')}`}
+
+S({title:'El enunciado',
+html:`${svg(`${a2fig(0)}
+${lb(A2.c1[0]-14,300,'cable 1',0,'dim','end')}${lb(A2.c2[0]+14,190,'cable 2',0,'dim','start')}
+${ln(A2.O[0],A2.O[1],A2.O[0]+130,A2.O[1],1,'ln2 dashl')}${arc(A2.O[0],A2.O[1],70,0,30,'30°',1,98)}
+${tx(A2.O[0]-20,A2.O[1]+20,'izq',1,'sm')}
+`)}
+${N(840,165,380,'Viga uniforme: <b>4,0 m</b>, <b>12 kg</b>, a <b>30°</b>. Dos cables verticales.',0)}
+${N(840,280,380,'Distancias desde el extremo izquierdo, <b>a lo largo de la viga</b>:',1)}
+${tbl(840,350,[['cable 1','0,5 m'],['masa 8 kg','1,4 m'],['centro de la viga','2,0 m'],['masa 10 kg','2,8 m'],['cable 2','3,5 m']],1,380)}
+${N(840,640,380,'g = 9,8 m/s² (lo pide el enunciado).',2,'acc')}`,
+beats:[
+`El problema 2 de la ayudantía 10. Una viga uniforme de 4,0 metros y 12 kilogramos está colgada de dos cables verticales, y queda inclinada 30 grados respecto de la horizontal.`,
+`Todas las distancias están medidas desde el extremo izquierdo, a lo largo de la viga. El cable 1 está a 0,5 metros. El cable 2 a 3,5 metros. De la viga cuelgan dos masas: una de 8 kilogramos a 1,4 metros, y otra de 10 kilogramos a 2,8 metros. Y como la viga es uniforme, su peso está en el centro, a 2,0 metros.`,
+`Ojo: este enunciado pide usar g igual a 9,8. Entonces aquí usamos 9,8.`]
+});
+
+S({title:'DCLE y el truco del ángulo',
+html:(()=>{const {O,E,c1,c2,m1,m2,G}=A2;return svg(`
+<g opacity=".4">${beam(O[0],O[1],E[0],E[1],18,null)}</g>
+${arr(c1[0],c1[1],c1[0],c1[1]-110,'ten','T'+sb('1'),0,[c1[0]+34,c1[1]-100])}
+${arr(c2[0],c2[1],c2[0],c2[1]-90,'ten','T'+sb('2'),0,[c2[0]+34,c2[1]-80])}
+${arr(m1[0],m1[1],m1[0],m1[1]+90,'peso','8g',0,[m1[0]+30,m1[1]+84])}
+${arr(G[0],G[1],G[0],G[1]+90,'peso','12g',0,[G[0]+36,G[1]+84])}
+${arr(m2[0],m2[1],m2[0],m2[1]+90,'peso','10g',0,[m2[0]+36,m2[1]+84])}
+${piv(O[0],O[1],1,7)}
+${dim(O[0],610,m2[0],610,'2,8 cos 30°',2,(O[0]+m2[0])/2,640)}
+`)})()
++N(840,165,380,'Todas las fuerzas son <b>verticales</b>.',0)
++N(840,250,380,'Torques respecto del <b>extremo izquierdo</b>.',1)
++N(840,330,380,'Brazo de cada fuerza: su distancia a lo largo de la viga <b>por cos 30°</b>.',2)
++N(840,450,380,'Todos los términos tienen cos 30°: <b>se cancela</b>. El ángulo no importa.',3,'acc'),
+beats:[
+`El DCLE. Los dos cables tiran hacia arriba, T uno y T dos. Hacia abajo: la masa de 8 kilogramos, el peso de la viga en el centro y la masa de 10 kilogramos. Fíjate: todas las fuerzas son verticales.`,
+`Para los torques, elegimos el extremo izquierdo de la viga. Ahí no actúa ninguna fuerza desconocida, pero es cómodo porque todas las distancias del enunciado se miden desde ahí. También podrías elegir el punto del cable 1, y te quedaría solo T dos.`,
+`Como las fuerzas son verticales, el brazo es la distancia horizontal al extremo. Una distancia d medida a lo largo de una viga inclinada 30 grados, tiene distancia horizontal d por coseno de 30. Por ejemplo, la masa de 10 kilos tiene brazo 2,8 por coseno de 30.`,
+`Y aquí está el truco: todos los términos de la ecuación tienen el mismo coseno de 30. Lo podemos dividir y desaparece. Con fuerzas verticales, la inclinación de la viga no cambia las tensiones. Puedes resolver como si la viga estuviera horizontal.`]
+});
+
+S({title:'c) Las tensiones',
+html:`
+${Q(90,170,'ΣF_y:  T_1 + T_2 = (12 + 8 + 10) g = 30 g',0,'s')}
+${Q(90,260,'Στ:  0,5 T_1 + 3,5 T_2 = (12 · 2,0 + 8 · 1,4 + 10 · 2,8) g',1,'xs')}
+${Q(90,330,'0,5 T_1 + 3,5 T_2 = 63,2 g',2,'s')}
+${Q(90,420,'0,5 T_1 + 3,5 (30 g − T_1) = 63,2 g',3,'s')}
+${Q(90,500,'105 g − 3 T_1 = 63,2 g   ⇒   T_1 = 13,93 g',4,'s')}
+${Q(90,600,'T_1 = 136,5 [N]',5,'box')}
+${Q(580,600,'T_2 = 30 g − T_1 = 157,5 [N]',5,'box')}`,
+beats:[
+`Las ecuaciones. Fuerzas en y: T uno más T dos es igual a la suma de los pesos. La masa total es 12 más 8 más 10, o sea 30 kilogramos: T uno más T dos es 30 g.`,
+`Torques respecto del extremo izquierdo, ya sin el coseno de 30. Los cables giran antihorario: 0,5 T uno más 3,5 T dos. Los pesos giran horario: la viga, 12 g por 2,0; la masa de 8, por 1,4; y la masa de 10, por 2,8.`,
+`12 por 2,0 es 24. 8 por 1,4 es 11,2. 10 por 2,8 es 28. La suma es 63,2. La ecuación queda: 0,5 T uno más 3,5 T dos igual a 63,2 g.`,
+`De la ecuación de fuerzas, T dos es 30 g menos T uno. Lo reemplazamos.`,
+`3,5 por 30 g es 105 g. Y 0,5 T uno menos 3,5 T uno da menos 3 T uno. Queda 105 g menos 3 T uno igual a 63,2 g. Despejando, T uno es 41,8 g dividido por 3: 13,93 g.`,
+`Con g igual a 9,8: T uno es 136,5 newton. Y T dos es 30 g, que es 294, menos 136,5: da 157,5 newton.`]
+});
+
+S({title:'d) Si la carga 2 sube a 16 kg',
+html:`
+${Q(90,170,'T_1 + T_2 = 36 g',0,'s')}
+${Q(90,250,'0,5 T_1 + 3,5 T_2 = (24 + 11,2 + 16 · 2,8) g = 80 g',1,'xs')}
+${Q(90,330,'126 g − 3 T_1 = 80 g   ⇒   T_1 = 15,33 g',2,'s')}
+${Q(90,420,'T_1 = 150,3 [N]',3,'box')}
+${Q(500,420,'T_2 = 202,5 [N]',3,'box')}
+${N(90,530,1100,'La carga 2 está a 2,8 m: a <b>0,7 m del cable 2</b> y a <b>2,3 m del cable 1</b>. Por eso casi todo el aumento lo soporta el <b>cable 2</b>.',4)}`,
+beats:[
+`Parte d: la carga de 10 kilos se cambia por una de 16. La masa total ahora es 12 más 8 más 16, o sea 36 kilogramos: T uno más T dos es 36 g.`,
+`En los torques solo cambia el último término: 16 por 2,8 da 44,8. La suma ahora es 24 más 11,2 más 44,8, que da 80. La ecuación es 0,5 T uno más 3,5 T dos igual a 80 g.`,
+`Reemplazamos T dos por 36 g menos T uno. 3,5 por 36 g da 126 g. Queda 126 g menos 3 T uno igual a 80 g, y T uno es 46 g dividido por 3: 15,33 g.`,
+`Con 9,8: T uno es 150,3 newton y T dos es 352,8 menos 150,3, o sea 202,5 newton.`,
+`¿Cuál cable soporta más esfuerzo y por qué? El cable 2. La carga 2 está a 2,8 metros, muy cerca del cable 2, que está a 3,5, y lejos del cable 1, que está a 0,5. Mientras más cerca de un cable está una carga, más de su peso se lleva ese cable. Fíjate: la carga subió 6 kilos, y la tensión 2 subió 45 newton, mientras que la 1 solo subió 14.`]
+});
+</script>
+<script>
+/* ===================== CH8 DINÁMICA DE ROTACIÓN ===================== */
+CH('Dinámica de rotación','Clases 21 y 22','Capítulo ocho: qué pasa cuando los torques no suman cero. Aparece la ecuación más importante de la segunda mitad: suma de torques igual a I alfa.');
+
+S({title:'Cuando los torques no suman cero',
+html:`${svg(`
+${wheel(330,400,130,0,'w8')}${dot(330+130,400,0,9)}
+${arcA(330,400,175,40,-40,'tor','τ',0,[540,380])}
+${arcA(330,400,100,150,90,'acel','α',1,[230,280])}
+`)}
+${N(640,165,580,'Si Στ ≠ 0, el cuerpo tiene <b>aceleración angular α</b>: su rapidez de giro cambia.',0)}
+${tbl(640,270,[['ángulo girado','θ  [rad]'],['velocidad angular','ω = dθ/dt  [rad/s]'],['aceleración angular','α = dω/dt  [rad/s^2]']],2,580)}
+${N(640,470,580,'Un punto a distancia R del eje:',3)}
+${Q(640,520,'v = R ω     a_T = R α',3,'s box')}
+${N(640,610,580,'Si el torque es constante, α es constante.',4,'acc')}`,
+beats:[
+`Hasta ahora todo estaba quieto, con suma de torques igual a cero. ¿Qué pasa si la suma de torques no es cero? Entonces el cuerpo empieza a girar, y cada vez más rápido.`,
+`Igual que una fuerza neta produce una aceleración, un torque neto produce una aceleración angular, que se escribe con la letra alfa.`,
+`Recordemos las variables de rotación. Theta es el ángulo girado, en radianes. Omega es la velocidad angular: cuánto ángulo gira por segundo, en radianes por segundo. Y alfa es la aceleración angular: cuánto cambia omega cada segundo, en radianes por segundo al cuadrado.`,
+`Un punto del cuerpo que está a distancia R del eje se mueve en un círculo. Su rapidez es v igual a R omega. Y su aceleración tangencial, la que lo hace ir más rápido, es a T igual a R alfa. Estas dos relaciones las vamos a usar todo el tiempo.`,
+`Y si el torque neto es constante, la aceleración angular también es constante, igual que con fuerza constante y aceleración constante.`],
+loop(st,r){const c=st%6;const ang=40*c*c;rot(r,'w8',ang%360,330,400)}
+});
+
+S({title:'De Newton a Στ = I α',
+html:`${svg(`
+${cir(330,420,190,0,'ln2 dashl')}${piv(330,420,0)}
+${ball(330+190*Math.cos(40*RAD),420-190*Math.sin(40*RAD),26,'m',0)}
+${ln(330,420,330+190*Math.cos(40*RAD),420-190*Math.sin(40*RAD),0,'ln','stroke:var(--line2)')}${tx(410,398,'R',0,'lab')}
+${arr(330+190*Math.cos(40*RAD),420-190*Math.sin(40*RAD),330+190*Math.cos(40*RAD)-110*Math.sin(40*RAD),420-190*Math.sin(40*RAD)-110*Math.cos(40*RAD),'ten','F'+sb('T'),1)}
+${arr(330+190*Math.cos(40*RAD),420-190*Math.sin(40*RAD),330+105*Math.cos(40*RAD),420-105*Math.sin(40*RAD),'acel','F'+sb('c'),1,[400,330])}
+`)}
+${Q(640,165,'F_{neta} = F_c + F_T',1,'s')}
+${N(640,230,580,'F<sub>c</sub> apunta al eje: <b>no hace torque</b>. Solo F<sub>T</sub> (tangente) hace girar.',2)}
+${Q(640,320,'τ = R F_T = R m a_T = R m (R α)',3,'s')}
+${Q(640,400,'τ = m R^2 α',3,'s')}
+${Q(640,480,'Στ = (Σ m r^2) α',4,'s')}
+${Q(640,570,'Στ_{neto} = I α',5,'l box')}`,
+beats:[
+`¿De dónde sale la ecuación? Partamos con un caso simple: una partícula de masa m que gira en un círculo de radio R alrededor de un eje.`,
+`Sobre ella actúa una fuerza neta, que podemos separar en dos partes: una que apunta al centro, la fuerza centrípeta F c, que la mantiene en el círculo, y una tangente al círculo, F T, que la hace ir más rápido.`,
+`La fuerza centrípeta apunta directo al eje: su línea de acción pasa por el eje y su torque es cero. La que hace girar es solo la tangencial.`,
+`El torque de la fuerza tangencial es R por F T, porque es perpendicular al radio. Por Newton, F T es m por a T. Y la aceleración tangencial es R alfa. Reemplazando: tau es R por m por R alfa, o sea m R cuadrado por alfa.`,
+`Un cuerpo rígido es un montón de partículas, cada una con su masa y su distancia al eje, pero todas con el mismo alfa, porque el cuerpo gira entero. Sumando todas: la suma de torques es la suma de m r cuadrado, por alfa.`,
+`A esa suma de m r cuadrado le ponemos un nombre: el momento de inercia, I. Y llegamos a la ecuación central: la suma de torques es I por alfa. Es la segunda ley de Newton para las rotaciones.`]
+});
+
+S({title:'El momento de inercia',
+html:`${svg(`
+${ttl(190,250,'CERCA DEL EJE',0)}
+<g data-b="0"><g id="m8a">${ln(70,450,310,450,null,'ln')}${ball(140,450,22,'',null)}${ball(240,450,22,'',null)}</g></g>${piv(190,450,0)}
+${ttl(470,250,'LEJOS DEL EJE',0)}
+<g data-b="0"><g id="m8b">${ln(350,450,590,450,null,'ln')}${ball(360,450,22,'',null)}${ball(580,450,22,'',null)}</g></g>${piv(470,450,0)}
+${lb(330,620,'mismo torque en las dos',3,'acc')}
+`)}
+${Q(640,170,'I = Σ m_i r_i^2   [kg·m^2]',0,'s')}
+${N(640,240,560,'Depende de la masa y de <b>qué tan lejos del eje</b> está. Más lejos, mucho más I (va al cuadrado).',1)}
+${tbl(640,380,[['traslación','F = m a'],['rotación','τ = I α']],2,520)}
+${N(640,520,560,'I es la "masa" de las rotaciones: la resistencia a cambiar el giro. Con el <b>mismo torque</b>, el de abajo acelera menos.',3)}`,
+beats:[
+`Veamos qué significa el momento de inercia. I es la suma de cada masa por su distancia al eje al cuadrado. Su unidad es kilogramo por metro cuadrado.`,
+`El momento de inercia no depende solo de cuánta masa hay. Depende de dónde está esa masa respecto del eje. Como la distancia va al cuadrado, la masa lejos del eje pesa muchísimo más en I.`,
+`Compara las dos ecuaciones: en traslación, fuerza igual a masa por aceleración. En rotación, torque igual a I por alfa. El torque hace el papel de la fuerza, alfa el de la aceleración, e I el de la masa.`,
+`Por eso decimos que I es la masa de las rotaciones: mide qué tan difícil es cambiar el giro de un cuerpo. Las dos barras de la figura tienen las mismas masas, pero abajo están más lejos del eje. Con el mismo torque, la de abajo acelera mucho menos. Mira cómo gira más lento.`],
+loop(st,r){const c=st%8;rot(r,'m8a',(60*c*c)%360,190,450);rot(r,'m8b',(60*c*c/4.3)%360,470,450)}
+});
+
+S({title:'Momentos de inercia que tienes que saber',
+html:`
+${tbl(90,160,[['aro delgado (respecto del centro)','I = M R^2'],['disco o cilindro macizo','I = ½ M R^2'],['esfera maciza','I = ⅖ M R^2'],['esfera hueca','I = ⅔ M R^2'],['barra, eje en el centro','I = (1/12) M L^2'],['barra, eje en un extremo','I = ⅓ M L^2']],0,720)}
+${N(880,180,340,'Mismo M y R: el aro tiene más I que el disco, porque <b>toda</b> su masa está en el borde.',1)}
+${N(880,380,340,'Revisa que coincidan con la tabla de la clase 22. En el control, normalmente te dan I.',2,'acc')}`,
+beats:[
+`Esta es la tabla de momentos de inercia que más se usan. Un aro delgado: M R cuadrado. Un disco o un cilindro macizo: un medio de M R cuadrado. Una esfera maciza: dos quintos de M R cuadrado. Una esfera hueca: dos tercios. Una barra con eje en el centro: un doceavo de M L cuadrado. Y una barra con eje en un extremo: un tercio de M L cuadrado.`,
+`Fíjate en el aro y el disco, con la misma masa y el mismo radio. En el aro, toda la masa está en el borde, a distancia R. En el disco, parte de la masa está cerca del centro. Por eso el aro tiene el doble de momento de inercia.`,
+`Estos son los valores usuales. Compáralos con la tabla de la clase 22. En el control lo normal es que te den el momento de inercia, o que te digan "como un disco", como en el problema del tronco.`]
+});
+
+S({title:'Objetos compuestos: el Tagadá',
+html:`${svg(`
+<g id="tg">${cir(330,420,190,null,'obj')}${cir(330,420,190,0)}
+${[0,72,144,216,288].map(a=>ball(330+150*Math.cos(a*RAD),420-150*Math.sin(a*RAD),18,'',1)).join('')}</g>${piv(330,420,0)}
+`)}
+${N(640,170,580,'El Tagadá es un disco que gira. Sin personas: lo modelamos como un <b>disco</b>.',0)}
+${Q(640,270,'I_{juego} = ½ M R^2',0,'s')}
+${N(640,340,580,'Con personas encima: cada persona es casi una partícula a distancia r del eje.',1)}
+${Q(640,440,'I_{total} = ½ M R^2 + Σ m_i r_i^2',2,'s box')}
+${N(640,540,580,'El momento de inercia total es la <b>suma</b> de los momentos de inercia de las partes, todos respecto del <b>mismo eje</b>.',2,'acc')}`,
+beats:[
+`La clase 22 muestra un juego mecánico, el Tagadá. Es una plataforma circular que gira. ¿Cómo la modelamos? Sin personas encima, como un disco: un medio M R cuadrado.`,
+`¿Y cuando se suben personas? Cada persona es mucho más chica que el juego, así que la podemos tratar como una partícula, a una distancia r del eje. Su aporte es m r cuadrado.`,
+`La regla general: el momento de inercia total es la suma de los momentos de inercia de cada parte. Pero ojo: todos tienen que estar calculados respecto del mismo eje.`],
+loop(st,r){rot(r,'tg',(st*40)%360,330,420)}
+});
+
+S({title:'Teorema de los ejes paralelos',
+html:`${svg(`
+${beam(170,420,570,420,20,0)}
+${ln(370,280,370,560,0,'ln2 dashl')}${tx(370,262,'CM',0,'sm')}
+${ln(170,280,170,560,1,'ln','stroke:var(--acc);stroke-dasharray:7 9')}${tx(170,262,'O',1,'smacc')}
+${dim(170,600,370,600,'d',1)}
+`)}
+${Q(640,170,'I_O = I_{CM} + M d^2',1,'l box')}
+${N(640,260,580,'Sirve para pasar de un eje que pasa por el centro de masa a otro <b>paralelo</b>, a distancia d.',2)}
+${N(640,380,580,'Ejemplo: barra con eje en un extremo, d = L/2.',3)}
+${Q(640,440,'I_O = (1/12) M L^2 + M (L/2)^2 = ⅓ M L^2',3,'xs')}
+${N(640,530,580,'I<sub>CM</sub> es siempre el <b>menor</b> de todos los ejes paralelos.',4,'acc')}`,
+beats:[
+`Muchas veces conocemos el momento de inercia respecto del centro de masa, pero el cuerpo gira alrededor de otro eje. Para eso existe el teorema de los ejes paralelos.`,
+`Dice: el momento de inercia respecto de un eje O es el momento de inercia respecto del centro de masa, más la masa total por la distancia entre los dos ejes al cuadrado. Los dos ejes tienen que ser paralelos.`,
+`Así se pasa de un eje por el centro de masa a cualquier otro eje paralelo, a distancia d.`,
+`Comprobémoslo con la barra. Respecto del centro es un doceavo de M L cuadrado. El extremo está a d igual a L medios del centro. Entonces: un doceavo de M L cuadrado más M por L medios al cuadrado, que es un cuarto de M L cuadrado. Un doceavo más tres doceavos da cuatro doceavos: un tercio de M L cuadrado. Justo lo de la tabla.`,
+`Como el término M d cuadrado siempre es positivo, el momento de inercia respecto del centro de masa es el más chico de todos.`]
+});
+
+S({title:'Ejemplo: la pieza de un acoplamiento',
+html:`
+${N(90,165,1100,'Una pieza de <b>3,6 kg</b>. Su momento de inercia respecto de un eje a <b>0,15 m</b> del centro de masa es <b>I<sub>P</sub> = 0,132 kg·m²</b>. ¿Cuánto vale I<sub>CM</sub> respecto de un eje paralelo por el centro de masa?',0)}
+${Q(90,320,'I_P = I_{CM} + M d^2',1,'s')}
+${Q(90,400,'I_{CM} = I_P − M d^2',2,'s')}
+${Q(90,480,'I_{CM} = 0,132 − 3,6 · (0,15)^2 = 0,132 − 0,081',3,'s')}
+${Q(90,580,'I_{CM} = 0,051 [kg·m^2]',4,'box')}
+${N(720,590,500,'Salió menor que I<sub>P</sub>: tiene sentido.',4)}`,
+beats:[
+`El ejemplo de la clase 22. Una pieza de un acoplamiento mecánico tiene 3,6 kilogramos. Medimos su momento de inercia respecto de un eje que pasa a 0,15 metros de su centro de masa, y da 0,132 kilogramos metro cuadrado. Nos piden el momento de inercia respecto de un eje paralelo que pasa por el centro de masa.`,
+`Escribimos el teorema: I P es I del centro de masa más M d cuadrado.`,
+`Lo que buscamos es I del centro de masa, así que despejamos: I del centro de masa es I P menos M d cuadrado.`,
+`Reemplazamos: 0,15 al cuadrado es 0,0225. Por 3,6 da 0,081. Entonces 0,132 menos 0,081.`,
+`Resultado: 0,051 kilogramos metro cuadrado. Y salió menor que I P, como debe ser.`]
+});
+
+/* ===================== CH9 POLEAS CON MASA ===================== */
+CH('Poleas con masa','Clase 21','Capítulo nueve: las poleas con masa. Hasta ahora las poleas eran ideales. Ahora la polea también gira y tiene inercia.');
+
+S({title:'Polea ideal y polea con masa',
+html:`${svg(`
+${ttl(300,190,'POLEA IDEAL',0)}${wheel(300,300,60,0)}
+${ln(240,300,240,460,0,'ln2','stroke:#cfcdd8')}${ln(360,300,360,460,0,'ln2','stroke:#cfcdd8')}
+${arr(240,360,240,300,'ten','T',0,[214,330])}${arr(360,360,360,300,'ten','T',0,[386,330])}
+${tx(300,520,'T igual a los dos lados',0,'sm')}
+${ttl(860,190,'POLEA CON MASA',1)}${wheel(860,300,60,1,null,'acc')}
+${ln(800,300,800,460,1,'ln2','stroke:#cfcdd8')}${ln(920,300,920,460,1,'ln2','stroke:#cfcdd8')}
+${arr(800,300,800,380,'ten','T'+sb('1'),2,[772,370])}${arr(920,300,920,400,'ten','T'+sb('2'),2,[950,390])}
+${arcA(860,300,95,40,-40,'acel','α',3,[985,240])}
+${tx(860,520,'T₁ ≠ T₂',2,'smacc')}
+`)}
+${N(90,590,1100,'La diferencia de tensiones produce el torque que acelera la polea: <b>(T₂ − T₁) R = I α</b>.',3)}`,
+beats:[
+`Recuerda las poleas ideales, de masa despreciable. En ellas la tensión de la cuerda es la misma a los dos lados. La polea solo cambia la dirección de la cuerda.`,
+`Pero si la polea tiene masa, también tiene momento de inercia, y para hacerla girar más rápido hace falta un torque. Ahora la polea es un cuerpo más del problema, y necesita su propio DCLE.`,
+`Las dos cuerdas tiran de la polea hacia abajo, en el borde, a distancia R del eje. Si las tensiones fueran iguales, sus torques se anularían y la polea no podría acelerar. Por eso, con polea con masa, las tensiones a cada lado son distintas: T uno y T dos.`,
+`El torque neto sobre la polea es T dos por R menos T uno por R, y es igual a I alfa. El peso de la polea y la fuerza del eje actúan en el centro, así que no hacen torque.`]
+});
+
+S({title:'Máquina de Atwood: el planteamiento',
+html:`${svg(`
+${ceil(260,440,170,0)}${ln(350,170,350,240,0,'ln2')}
+${wheel(350,240,60,0,null,'acc')}
+${ln(290,240,290,400,0,'ln2','stroke:#cfcdd8')}${ln(410,240,410,470,0,'ln2','stroke:#cfcdd8')}
+${cbox(258,400,64,56,'A','m₁',0)}${cbox(374,470,72,66,'B','m₂',0)}
+${arr(220,460,220,400,'acel','a',1,[196,430])}${arr(480,470,480,530,'acel','a',1,[506,500])}
+${arcA(350,240,92,40,-40,'acel','α',1,[470,180])}
+`)}
+${N(640,160,580,'m₁ &lt; m₂, polea de masa m<sub>p</sub> y radio R. Sentido positivo: el del movimiento.',0)}
+${Q(640,250,'m_1:   T_1 − m_1 g = m_1 a',2,'s')}
+${Q(640,320,'m_2:   m_2 g − T_2 = m_2 a',3,'s')}
+${Q(640,400,'polea:   T_2 R − T_1 R = I α',4,'s')}
+${Q(640,470,'I = ½ m_p R^2     a = α R',5,'s box')}
+${N(640,560,580,'La cuerda no resbala: el borde de la polea se mueve igual que la cuerda.',5)}`,
+beats:[
+`La máquina de Atwood con una polea con masa. Dos bloques, m uno y m dos, con m uno menor que m dos, cuelgan de una cuerda que pasa por una polea de masa m p y radio R.`,
+`Primero, elegimos el sentido positivo. Lo más cómodo es el sentido en que se mueve el sistema: m dos es más pesado, así que baja, m uno sube, y la polea gira en sentido horario. Con esa elección, a y alfa salen positivos.`,
+`Newton para m uno: hacia arriba, que es su sentido positivo, actúa T uno, y hacia abajo su peso. T uno menos m uno g es m uno a.`,
+`Newton para m dos: su sentido positivo es hacia abajo. Hacia abajo su peso, hacia arriba T dos. m dos g menos T dos es m dos a.`,
+`La polea: T dos tira del borde derecho y la hace girar en sentido horario, el positivo. T uno tira del lado izquierdo, en contra. T dos R menos T uno R es I alfa.`,
+`Dos datos más. La polea es un disco, así que I es un medio m p R cuadrado. Y la condición de que la cuerda no resbala sobre la polea: el borde de la polea se mueve igual que la cuerda, entonces a es alfa por R. Esta condición conecta la traslación con la rotación.`]
+});
+
+S({title:'Máquina de Atwood: la solución',
+html:`
+${Q(90,165,`T_2 − T_1 = ${fr('I α','R')} = ½ m_p R ${fr('a','R')} = ½ m_p a`,0,'s')}
+${Q(90,280,'T_1 = m_1 (g + a)     T_2 = m_2 (g − a)',1,'s')}
+${Q(90,360,'m_2 (g − a) − m_1 (g + a) = ½ m_p a',2,'s')}
+${Q(90,460,`a = g ${fr('m_2 − m_1','m_1 + m_2 + ½ m_p')}`,3,'l box')}
+${N(90,590,560,'Si m<sub>p</sub> = 0 vuelve la fórmula de la polea ideal. La masa de la polea frena el sistema.',4)}
+${N(720,300,500,'Ejemplo inventado: m₁ = 2 kg, m₂ = 3 kg, m<sub>p</sub> = 2 kg.',5,'acc')}
+${Q(720,380,`a = 10 · ${fr('1','2 + 3 + 1')} = 1,67 [m/s^2]`,5,'s')}
+${Q(720,480,'T_1 = 23,3 [N]   T_2 = 25,0 [N]',6,'s')}`,
+beats:[
+`Resolvamos. De la ecuación de la polea, dividimos por R: T dos menos T uno es I alfa sobre R. Reemplazamos I por un medio m p R cuadrado y alfa por a sobre R. Las R se cancelan y queda: T dos menos T uno es un medio de m p por a.`,
+`De las ecuaciones de los bloques despejamos las tensiones: T uno es m uno por g más a. T dos es m dos por g menos a.`,
+`Las reemplazamos en la diferencia de tensiones: m dos por g menos a, menos m uno por g más a, igual a un medio m p a.`,
+`Juntamos los términos con g a un lado y los con a al otro. El resultado: a es g por m dos menos m uno, dividido por m uno más m dos más un medio de m p. Esta es la fórmula de la clase 21.`,
+`Revisemos: si la polea no tiene masa, m p es cero y queda la fórmula de la polea ideal, que ya conocías. Con masa, el denominador crece y la aceleración baja. Tiene sentido: parte del peso se usa en hacer girar la polea.`,
+`Un ejemplo con números inventados, para practicar: m uno 2 kilos, m dos 3 kilos y la polea 2 kilos. a es 10 por 3 menos 2, dividido por 2 más 3 más 1. Da 1,67 metros por segundo al cuadrado.`,
+`Y las tensiones: T uno es 2 por 11,67, o sea 23,3 newton. T dos es 3 por 8,33, o sea 25,0 newton. Son distintas, como esperábamos.`]
+});
+
+S({title:'Ejercicio: plano inclinado y polea',
+html:`${svg(`
+<polygon points="120,560 560,560 560,300" style="fill:none;stroke:#7d7b88;stroke-width:3"/>
+${arc(120,560,70,0,30.6,'φ',0,98)}
+${wheel(585,305,32,0,null,'acc')}
+<g transform="rotate(-30.6 404.7 374.4)">${cbox(354.7,344.4,100,60,'A','m₁',0)}</g>
+${ln(447.7,348.9,568.7,277.4,0,'ln2','stroke:#cfcdd8')}
+${ln(617,305,617,450,0,'ln2','stroke:#cfcdd8')}${cbox(587,450,60,56,'B','m₂',0)}
+`)}
+${N(720,160,500,'Sistema en reposo, <b>m₁ = 4 m₂</b>, polea de inercia I y radio R, sin roce. Suponemos m₁ en el plano y m₂ colgando.',0)}
+${Q(720,300,'m_2 g − T_2 = m_2 a',1,'s')}
+${Q(720,360,'T_1 − m_1 g sin φ = m_1 a',1,'s')}
+${Q(720,420,'(T_2 − T_1) R = I a / R',1,'s')}
+${Q(720,500,`a = ${fr('m_2 g − m_1 g sin φ','m_1 + m_2 + I/R^2')}`,2,'s')}
+${Q(720,600,`a = g ${fr('1 − 4 sin φ','5 + I/(m_2 R^2)')}`,3,'s box')}`,
+beats:[
+`El ejercicio de la clase 21: un sistema en reposo, con dos masas unidas por una cuerda que pasa por una polea de momento de inercia I. m uno es cuatro veces m dos. Hay un plano inclinado de ángulo phi y no hay roce. Suponemos que m uno está sobre el plano y m dos cuelga. Si en tu figura es al revés, intercambias los papeles: el método es el mismo.`,
+`Tomamos como positivo: m dos baja y m uno sube por el plano. Para m dos: su peso menos T dos es m dos a. Para m uno, en la dirección del plano: T uno hacia arriba del plano, y la componente del peso a lo largo del plano, m uno g seno phi, hacia abajo. Para la polea: T dos menos T uno, por R, es I alfa, y alfa es a sobre R.`,
+`Si sumamos las tres ecuaciones, después de dividir la de la polea por R, las tensiones se cancelan. Queda: a es m dos g menos m uno g seno phi, dividido por m uno más m dos más I sobre R cuadrado. Fíjate en el término I sobre R cuadrado: es como una masa extra, la masa equivalente de la polea.`,
+`Ahora reemplazamos m uno por 4 m dos y dividimos arriba y abajo por m dos: a es g por 1 menos 4 seno phi, dividido por 5 más I sobre m dos R cuadrado. Si 4 seno phi es mayor que 1, la aceleración sale negativa: significa que m uno baja por el plano y m dos sube. El signo te dice hacia dónde se mueve.`]
+});
+</script>
+<script>
+/* ===================== CH10 RODADURA ===================== */
+CH('Rodadura','Clase 22','Capítulo diez: la rodadura. Una rueda que avanza y gira al mismo tiempo. Aquí se juntan Newton y la ecuación de torques.');
+
+const RL={x0:150,x1:1130,y:450,R:60};
+RL.cyc=(()=>{let p=[];for(let x=RL.x0;x<=RL.x1;x+=4){const f=(x-RL.x0)/RL.R;p.push([(x-RL.R*Math.sin(f)).toFixed(1),(RL.y+RL.R*Math.cos(f)).toFixed(1)].join(','))}return p.join(' ')})();
+S({title:'Traslación más rotación',
+html:`${svg(`
+${gnd(110,1170,RL.y+RL.R,0)}
+<polyline points="${RL.cyc}" class="cyc" data-b="2"/>
+${ln(RL.x0,RL.y,RL.x1,RL.y,1,'ln2 dashl')}
+<g data-b="0"><g id="rl" transform="translate(${RL.x0},${RL.y})">${wheel(0,0,RL.R,null)}<circle cx="0" cy="${RL.R}" r="9" style="fill:var(--acc)"/></g></g>
+${lb(640,330,'el centro de masa avanza en línea recta',1,'dim')}
+${lb(640,630,'un punto del borde dibuja una cicloide',2,'acc')}
+`)}
+${N(90,165,1100,'Una rueda que rueda hace <b>dos movimientos a la vez</b>: su centro de masa se traslada, y la rueda gira en torno a su centro.',0)}`,
+beats:[
+`En la rodadura, un cuerpo, como una rueda, hace dos movimientos al mismo tiempo: avanza y gira.`,
+`Si miramos solo el centro de la rueda, el centro de masa, se mueve en línea recta, como una partícula. Para él usamos Newton: la suma de fuerzas es M por la aceleración del centro de masa.`,
+`Pero si miramos un punto del borde, como el punto morado, su camino es mucho más raro: dibuja una curva llamada cicloide. Esa curva es la suma de avanzar y girar. Para el giro usamos la suma de torques igual a I alfa, respecto del centro de masa.`],
+loop(st,r){const T=6,c=st%T,x=RL.x0+(RL.x1-RL.x0)*Math.min(1,c/5);const f=(x-RL.x0)/RL.R;const e=r.querySelector('#rl');if(e)e.setAttribute('transform',`translate(${x.toFixed(1)},${RL.y}) rotate(${(f*180/Math.PI).toFixed(1)})`)}
+});
+
+S({title:'La condición de rodadura',
+html:`${svg(`
+${gnd(380,900,560,0)}${wheel(640,450,110,0,'cr')}
+${arr(640,450,760,450,'vel','v',1,[780,430])}
+${arr(640,340,880,340,'vel','2v',2,[905,320])}
+${dot(640,560,2,9)}${lb(670,600,'v = 0',2,'acc','start')}
+${dim(790,450,790,560,'R',0)}
+`)}
+${N(90,165,420,'Si rueda <b>sin deslizar</b>, en una vuelta avanza exactamente lo que mide su borde.',0)}
+${Q(90,300,'s = R θ',0,'s')}
+${Q(90,370,`v_{CM} = ${fr('ds','dt')} = R ${fr('dθ','dt')} = R ω`,1,'s box')}
+${Q(90,470,`a_{CM} = R α`,1,'s box')}
+${N(90,550,420,'El punto de contacto está <b>quieto</b> en ese instante: arriba va a 2v, abajo a 0.',2)}`,
+beats:[
+`La clave de la rodadura es una condición. Si la rueda rueda sin deslizar, cada vez que gira un ángulo theta, avanza una distancia igual al arco del borde que tocó el suelo: s igual a R theta. En una vuelta completa, avanza exactamente su perímetro.`,
+`Si derivamos respecto del tiempo: la rapidez del centro de masa es R por la rapidez con que cambia theta, o sea R omega. Y derivando otra vez, la aceleración del centro de masa es R alfa. Estas dos ecuaciones son la condición de rodadura. Sin ellas, los problemas no se pueden resolver.`,
+`Una consecuencia curiosa: el punto de la rueda que toca el suelo está quieto en ese instante. Arriba, avanzar y girar se suman y la velocidad es 2 v. Abajo se restan y da cero. Por eso el roce en una rodadura sin deslizar es roce estático: el punto de contacto no resbala.`]
+});
+
+const CR={c:[360,400],R:110,g:510};
+S({title:'Ejemplo: desenrollando un carrete',
+html:`${svg(`
+${gnd(150,760,CR.g,0)}${wheel(CR.c[0],CR.c[1],CR.R,0)}
+${ln(CR.c[0],CR.c[1]-CR.R,700,CR.c[1]-CR.R,0,'ln2','stroke:#cfcdd8;stroke-width:2.5')}
+${arr(CR.c[0],CR.c[1]-CR.R,CR.c[0]+150,CR.c[1]-CR.R,'ten','F',1,[CR.c[0]+170,CR.c[1]-CR.R-26])}
+${arr(CR.c[0],CR.g,CR.c[0]+90,CR.g,'roce','f',2,[CR.c[0]+104,CR.g+28])}
+${arr(CR.c[0],CR.g,CR.c[0],CR.g-42,'rea','N',3,[CR.c[0]-26,CR.g-30])}
+${arr(CR.c[0],CR.c[1],CR.c[0],CR.c[1]+58,'peso','P',3,[CR.c[0]+28,CR.c[1]+44])}
+${ozz(CR.c[0]-60,CR.c[1]-40,'in','acel',4,14)}${tx(CR.c[0]-60,CR.c[1]-78,'α',4,'lab')}
+`)}
+${N(800,165,420,'Un carrete cilíndrico de masa <b>M</b> y radio <b>R</b>. Se tira del cable, enrollado arriba, con una fuerza horizontal constante <b>F</b>. Rueda sin deslizar.',0)}
+${N(800,340,420,'<b>f</b> es roce estático: no sabemos su sentido. Lo suponemos hacia adelante.',2)}
+${N(800,470,420,'Positivo: hacia la derecha, y el giro <b>horario</b> (⊗), que es hacia donde rueda.',4,'acc')}`,
+beats:[
+`El ejemplo de la clase 22: desenrollando un carrete. Un carrete cilíndrico de masa M y radio R tiene un cable enrollado. Una persona tira del cable con una fuerza horizontal constante F. El cable sale por arriba del carrete. El carrete rueda sin deslizar.`,
+`DCLE del carrete. La fuerza F actúa arriba, en el borde, donde el cable deja el carrete, horizontal hacia la derecha.`,
+`En el punto de contacto con el suelo hay roce estático f. No sabemos hacia dónde apunta: lo suponemos hacia la derecha, y si sale negativo, era al revés.`,
+`Además, la normal N hacia arriba en el contacto, y el peso P en el centro.`,
+`El carrete avanza hacia la derecha y gira en sentido horario. Para que a y alfa tengan el mismo signo en la condición a igual a R alfa, elegimos positivo hacia la derecha y positivo el giro horario. En la clase se marca con la cruz: alfa entra a la pantalla.`]
+});
+
+S({title:'Carrete: las ecuaciones',
+html:`
+${Q(90,165,'Στ_{CM}:   F R − f R = I_{CM} α',0,'s')}
+${N(90,230,560,'F, arriba, gira horario (+). f, abajo y hacia adelante, gira antihorario (−). N y P apuntan al centro: brazo cero.',0)}
+${Q(90,370,'ΣF_x:   F + f = M a_{CM}',1,'s')}
+${Q(90,440,'ΣF_y:   N − P = 0',1,'s')}
+${Q(90,530,'a_{CM} = R α     I_{CM} = ½ M R^2',2,'s box')}
+${Q(720,190,'F − f = ½ M a',3,'s')}
+${Q(720,260,'F + f = M a',3,'s')}
+${Q(720,350,'2F = (3/2) M a',4,'s')}
+${Q(720,440,`a_{CM} = ${fr('4F','3M')}`,4,'l box')}
+${Q(720,570,'f = M a − F = F/3',5,'s box')}`,
+beats:[
+`Torques respecto del centro de masa. F actúa arriba, a distancia R, y es perpendicular al radio: su torque es F R, horario, positivo. El roce actúa abajo, a distancia R, hacia adelante: gira el carrete en sentido antihorario, negativo. La normal y el peso apuntan directo al centro, así que su brazo es cero. Queda F R menos f R igual a I alfa.`,
+`Newton para el centro de masa. En x: F más f es M por a del centro de masa. En y: N menos P igual a cero, porque el carrete no salta.`,
+`Y las dos piezas extra: la condición de rodadura, a igual a R alfa, y el momento de inercia de un cilindro, un medio M R cuadrado.`,
+`Reemplacemos en la ecuación de torques: I alfa es un medio M R cuadrado por a sobre R, o sea un medio M R a. Dividiendo todo por R queda F menos f igual a un medio M a. Y de Newton, F más f igual a M a.`,
+`Sumamos las dos ecuaciones: el roce se cancela, y queda 2 F igual a tres medios M a. Despejando: la aceleración es 4 F dividido por 3 M.`,
+`Y el roce: f es M a menos F, que da F tercios. Salió positivo: el roce apunta hacia adelante, a favor del movimiento. Por eso el carrete acelera más que F sobre M, que es lo que tendría sin roce. Es un resultado sorprendente y muy de control.`]
+});
+
+/* ===================== CH11 YOYO Y TRONCO ===================== */
+CH('El yoyo y el tronco','Clase 22 · Ejercicios','Capítulo once: el yoyo, resuelto de dos maneras, y el propuesto del tronco en el plano inclinado.');
+
+const YY={O:[420,330],R:70,top:150};
+S({title:'El yoyo: qué está pasando',
+html:`${svg(`
+${ceil(260,520,YY.top,0)}
+<line id="yy_s" x1="${YY.O[0]-YY.R}" y1="${YY.top}" x2="${YY.O[0]-YY.R}" y2="${YY.O[1]}" class="ln2" style="stroke:#cfcdd8;stroke-width:2.5" data-b="0"/>
+<g data-b="0"><g id="yy" transform="translate(${YY.O[0]},${YY.O[1]})">${wheel(0,0,YY.R,null)}</g></g>
+`)}
+${LI(640,170,'a','¿Con qué interactúa el disco? Con la <b>Tierra</b> y con la <b>cuerda</b>.',1,580)}
+${LI(640,260,'b','Fuerzas: el peso <b>Mg</b> y la tensión <b>T</b>.',2,580)}
+${LI(640,330,'c','Rota en torno a su centro <b>O</b>. También, en cada instante, en torno a <b>A</b>.',3,580)}
+${LI(640,430,'d','DCL y DCLE: en la siguiente escena.',4,580)}${LI(640,490,'e','a del CM <b>hacia abajo</b>. α en sentido <b>horario</b> (⊗).',4,580)}`,
+beats:[
+`El ejercicio del yoyo. Un disco de masa M y radio R baja mientras se desenrolla una cuerda atada a su alrededor. El otro extremo de la cuerda está fijo en el techo. Igual que la rueda, el disco se traslada y rota al mismo tiempo.`,
+`Las preguntas de la clase. a: ¿con qué cuerpos interactúa el disco? Con la Tierra, que lo atrae, y con la cuerda, que tira de él.`,
+`b: ¿qué fuerzas actúan? El peso, M g, hacia abajo en el centro. Y la tensión T, hacia arriba, en el punto A donde la cuerda deja el disco, a la izquierda.`,
+`c: ¿respecto de qué punto rota? Rota alrededor de su centro, O. Pero también se puede ver como una rotación, en cada instante, alrededor del punto A. Lo vemos en un rato.`,
+`e: ¿hacia dónde apuntan las aceleraciones? El centro de masa acelera hacia abajo. Y el disco gira en sentido horario: la cuerda tira de su lado izquierdo hacia arriba. Alfa entra a la pantalla.`],
+loop(st,r){const c=st%3.2,a=60,y=YY.O[1]+.5*a*c*c;const e=r.querySelector('#yy');if(e)e.setAttribute('transform',`translate(${YY.O[0]},${y.toFixed(1)}) rotate(${((y-YY.O[1])/YY.R*180/Math.PI).toFixed(1)})`);const s=r.querySelector('#yy_s');if(s)s.setAttribute('y2',y.toFixed(1))}
+});
+
+S({title:'El yoyo: torques respecto del centro',
+html:`${svg(`
+${ceil(260,520,YY.top,null)}${ln(YY.O[0]-YY.R,YY.top,YY.O[0]-YY.R,YY.O[1],null,'ln2','stroke:#cfcdd8;opacity:.5')}
+${wheel(YY.O[0],YY.O[1],YY.R,0)}
+${arr(YY.O[0]-YY.R,YY.O[1],YY.O[0]-YY.R,YY.O[1]-110,'ten','T',0,[YY.O[0]-YY.R-28,YY.O[1]-100])}
+${arr(YY.O[0],YY.O[1],YY.O[0],YY.O[1]+120,'peso','Mg',0,[YY.O[0]+38,YY.O[1]+110])}
+${tx(YY.O[0]-YY.R-22,YY.O[1]+20,'A',0,'lab')}${tx(YY.O[0]+18,YY.O[1]-20,'O',0,'lab')}
+${ozz(YY.O[0]+110,YY.O[1]-40,'in','acel',2,14)}${tx(YY.O[0]+110,YY.O[1]-78,'α',2,'lab')}
+`)}
+${Q(640,170,'DCL:   M g − T = M a',1,'s')}
+${Q(640,270,'Στ_O:   R T = I α = ½ M R^2 α',2,'s')}
+${Q(640,370,'a = α R',3,'s')}
+${Q(640,440,'R T = ½ M R^2 · (a/R)   ⇒   T = ½ M a',3,'s')}
+${Q(640,520,'M g − ½ M a = M a',4,'s')}
+${Q(640,600,`a = ${fr('2g','3')}     α = ${fr('2g','3R')}     T = ${fr('Mg','3')}`,5,'s box')}`,
+beats:[
+`El DCLE del disco: la tensión T hacia arriba en A, a la izquierda, y el peso M g en el centro O.`,
+`Newton para el centro de masa, con positivo hacia abajo, que es hacia donde acelera: M g menos T es M a.`,
+`Torques respecto del centro O. El peso actúa en O: brazo cero. La tensión actúa a distancia R, perpendicular al radio: torque R T, horario, que es nuestro positivo. Es igual a I alfa, con I de un disco: un medio M R cuadrado.`,
+`Usamos la condición de rodadura: el disco "rueda" sobre la cuerda, así que a es alfa R. Reemplazamos alfa por a sobre R en la ecuación de torques. Las R se simplifican y queda T igual a un medio M a.`,
+`Lo llevamos a Newton: M g menos un medio M a es igual a M a. Simplificamos M: g es tres medios a.`,
+`Resultado: a es dos tercios de g. Alfa es a sobre R: dos g sobre 3 R. Y la tensión, un medio de M por dos tercios de g, es M g tercios. Fíjate que el yoyo cae más lento que en caída libre: un tercio del peso lo "gasta" la cuerda.`]
+});
+
+S({title:'El yoyo: torques respecto de A',
+html:`${svg(`
+${wheel(YY.O[0],YY.O[1],YY.R,0)}${dot(YY.O[0]-YY.R,YY.O[1],0,9)}
+${arr(YY.O[0]-YY.R,YY.O[1],YY.O[0]-YY.R,YY.O[1]-110,'ten','T',0,[YY.O[0]-YY.R-28,YY.O[1]-100])}
+${arr(YY.O[0],YY.O[1],YY.O[0],YY.O[1]+120,'peso','Mg',0,[YY.O[0]+38,YY.O[1]+110])}
+${tx(YY.O[0]-YY.R-22,YY.O[1]+22,'A',0,'lab')}
+${dim(YY.O[0]-YY.R,YY.O[1]+150,YY.O[0],YY.O[1]+150,'R',1)}
+`)}
+${N(640,165,580,'A es un <b>eje instantáneo de rotación</b>: en ese instante, A está quieto.',0)}
+${Q(640,250,'Στ_A:   M g R = I′ α',1,'s')}
+${N(640,310,580,'T pasa por A: no aparece. El peso tiene brazo R.',1)}
+${Q(640,400,'I′ = I + M R^2 = ½ M R^2 + M R^2 = (3/2) M R^2',2,'xs')}
+${Q(640,480,`α = ${fr('M g R','(3/2) M R^2')} = ${fr('2g','3R')}`,3,'s box')}
+${N(640,590,580,'Mismo resultado. Ojo: este atajo vale solo con el punto de contacto, el eje instantáneo.',4,'acc')}`,
+beats:[
+`La clase pregunta: ¿qué pasa si calculamos los torques respecto del punto A? A es el punto donde la cuerda deja el disco. En ese instante, A está quieto, igual que el punto de contacto de una rueda. Entonces el disco, en ese instante, está girando alrededor de A. A A le llamamos eje instantáneo de rotación.`,
+`Torques respecto de A. La tensión actúa justo en A: brazo cero, desaparece. El peso actúa en el centro, a distancia horizontal R de A: su torque es M g R. Y es igual a I prima por alfa, donde I prima es el momento de inercia respecto de A, no del centro.`,
+`I prima lo sacamos con el teorema de ejes paralelos: el I del centro de masa, un medio M R cuadrado, más M por la distancia R al cuadrado. Da tres medios M R cuadrado.`,
+`Despejamos alfa: M g R dividido por tres medios M R cuadrado. Simplificando: dos g sobre 3 R. Exactamente lo mismo de antes, y en una sola ecuación.`,
+`Un cuidado: este atajo funciona porque A es el eje instantáneo de rotación, el punto que no se mueve. Para cualquier otro punto que se mueve, usa el centro de masa, que siempre funciona.`]
+});
+
+const TR={top:[120,250],s:300,R:60};TR.S=[TR.top[0]+TR.s*Math.cos(30*RAD),TR.top[1]+TR.s*Math.sin(30*RAD)];TR.C=PT(TR.S[0],TR.S[1],60,TR.R);
+S({title:'Propuesto: el tronco en el plano inclinado',
+html:`${svg(`
+<polygon points="${TR.top[0]},${TR.top[1]} ${TR.top[0]},${TR.top[1]+346} ${TR.top[0]+600},${TR.top[1]+346}" style="fill:none;stroke:#7d7b88;stroke-width:3"/>
+${arc(TR.top[0]+600,TR.top[1]+346,70,150,180,'30°',0,96)}
+${wheel(TR.C[0],TR.C[1],TR.R,0)}
+${arr(TR.C[0],TR.C[1],TR.C[0],TR.C[1]+120,'peso','Mg',1,[TR.C[0]+36,TR.C[1]+110])}
+${(()=>{const n=PT(TR.S[0],TR.S[1],60,130);return arr(TR.S[0],TR.S[1],n[0],n[1],'rea','N',1,[n[0]+24,n[1]-6])})()}
+${(()=>{const f=PT(TR.S[0],TR.S[1],150,100);return arr(TR.S[0],TR.S[1],f[0],f[1],'roce','f',1,[f[0]-10,f[1]-24])})()}
+`)}
+${N(760,160,460,'Tronco homogéneo de <b>5,0 kg</b>, cilindro de radio <b>67,0 cm</b>, rueda sin deslizar por un plano de <b>30°</b>. I como un disco.',0)}
+${Q(760,320,'M g sin 30° − f = M a',2,'xs')}
+${Q(760,380,'f R = ½ M R^2 α,   a = R α   ⇒   f = ½ M a',3,'xs')}
+${Q(760,460,'M g sin 30° = (3/2) M a',4,'xs')}
+${Q(760,530,`a = ${fr('2','3')} g sin 30° = ${fr('g','3')} ≈ 3,33 [m/s^2]`,4,'s box')}
+${N(760,630,460,'M y R se cancelan. Con g = 9,8: 3,27 m/s².',5,'acc')}`,
+beats:[
+`El propuesto de la clase 22: un tronco homogéneo de 5,0 kilogramos, con forma de cilindro de radio 67,0 centímetros, rueda sin deslizar hacia abajo por un plano inclinado de 30 grados. Su momento de inercia es el de un disco. Nos piden la aceleración.`,
+`DCLE: el peso M g en el centro. La normal N, perpendicular al plano, en el punto de contacto. Y el roce estático f, en el contacto, a lo largo del plano. ¿Hacia dónde? Hacia arriba del plano. Es el roce el que hace girar al tronco: sin roce, el tronco resbalaría sin girar.`,
+`Newton a lo largo del plano, positivo hacia abajo: la componente del peso a lo largo del plano, M g seno 30, menos el roce, es M a.`,
+`Torques respecto del centro: el peso y la normal pasan por el centro. Solo el roce hace torque: f R. Es igual a un medio M R cuadrado por alfa. Con la condición de rodadura, alfa es a sobre R, y queda f igual a un medio M a.`,
+`Lo reemplazamos en Newton: M g seno 30 es tres medios M a. Entonces a es dos tercios de g seno 30. Seno de 30 es un medio, así que a es g tercios: 3,33 metros por segundo al cuadrado.`,
+`Fíjate en algo importante: la masa y el radio se cancelaron. Cualquier cilindro macizo baja con la misma aceleración. Los 5 kilos y los 67 centímetros no se usan. Con 9,8 en vez de 10, da 3,27. Y si quieres el roce: f es un medio M a, 8,33 newton.`]
+});
+</script>
+<script>
+function bars3(id,x,y,t,b,labs,cls=''){const K=['K','Ug','vel'];labs=labs||['K<sub>rot</sub>','U<sub>g</sub>','K<sub>tras</sub>'];
+return `<div class="bars ${cls}" id="${id}" style="left:${x}px;top:${y}px"${ab(b)}><div class="btl">${t}</div><div class="bcols">${K.map(k=>`<div class="bc"><span class="bv"></span><div class="bf" style="background:var(--${k});color:var(--${k})"></div></div>`).join('')}</div><div class="bls">${labs.map(l=>`<span>${l}</span>`).join('')}</div><div class="be"></div></div>`}
+
+/* ===================== CH12 ENERGÍA ===================== */
+CH('Energía de un cuerpo rígido','Clase 23','Capítulo doce: la energía de un cuerpo rígido. Un cuerpo que gira tiene energía cinética aunque su centro esté quieto.');
+
+S({title:'La energía cinética de un cuerpo que rueda',
+html:`${svg(`
+${gnd(110,600,520,0)}<g id="ek">${wheel(0,0,70,null)}</g>
+${lb(350,600,'avanza y gira',0,'dim')}
+`)}
+${Q(660,165,'K_{tras} = ½ M v_{CM}^2',0,'s')}
+${N(660,225,560,'por el movimiento del <b>centro de masa</b>',0)}
+${Q(660,300,'K_{rot} = ½ I_{CM} ω^2',1,'s')}
+${N(660,360,560,'por el <b>giro</b> en torno al centro de masa',1)}
+${Q(660,440,'K = ½ M v_{CM}^2 + ½ I_{CM} ω^2',2,'s box')}
+${Q(660,540,'K = ½ I_P ω^2',3,'s')}
+${N(660,600,560,'P: punto de contacto. I<sub>P</sub> = I<sub>CM</sub> + M R² y v = R ω dan lo mismo.',3)}`,
+beats:[
+`Una rueda que rueda tiene dos tipos de energía cinética. La primera es la de traslación, la que ya conocías: un medio M v cuadrado, donde v es la rapidez del centro de masa.`,
+`La segunda es nueva: la energía cinética de rotación. Es un medio de I por omega al cuadrado, con I respecto del centro de masa. Fíjate en el parecido: la masa se cambia por I, y la velocidad por omega.`,
+`La energía cinética total es la suma de las dos. Un medio M v cuadrado más un medio I omega cuadrado.`,
+`Hay otra forma de escribirlo: toda la energía como rotación pura alrededor del punto de contacto P, el eje instantáneo: un medio I P omega cuadrado. Es lo mismo: si reemplazas I P por I del centro de masa más M R cuadrado, y usas v igual a R omega, te vuelve a aparecer la suma de las dos.`],
+loop(st,r){const c=st%5,x=170+380*Math.min(1,c/4.2);const e=r.querySelector('#ek');if(e)e.setAttribute('transform',`translate(${x.toFixed(1)},450) rotate(${((x-170)/70*180/Math.PI).toFixed(1)})`)}
+});
+
+S({title:'Ejemplo: la barra que cae pivoteada',
+html:`${svg(`
+${piv(260,260,0,10)}<g id="bp">${beam(260,260,560,260,16,null)}</g>
+${ln(240,410,600,410,1,'ln2 dashl')}${lb(610,410,'h = 0',1,'acc','start')}
+${lb(410,215,'L',0,'dim')}
+`)}
+${N(660,160,560,'Barra uniforme de largo <b>L</b> y masa <b>M</b>, pivoteada en un extremo, libre de girar en el plano vertical. Se suelta horizontal. ¿Cuál es su ω al pasar por la vertical?',0)}
+${tbl(660,330,[['aceleraciones','torque: τ = I α'],['velocidades','energía']],1,560)}
+${N(660,460,560,'Al bajar, el brazo del peso cambia y α no es constante. Para una <b>velocidad</b>, la herramienta es la <b>energía</b>.',2,'acc')}`,
+beats:[
+`El ejemplo de la clase 23. Una barra uniforme, de largo L y masa M, está pivoteada en un extremo, y puede girar libremente en un plano vertical. La soltamos desde la posición horizontal. ¿Con qué velocidad angular pasa por la posición vertical?`,
+`¿Qué herramienta usamos? La clase lo resume así. Si te preguntan por aceleraciones, usas torques: suma de torques igual a I alfa. Si te preguntan por velocidades, usas energía.`,
+`Aquí hay otra razón para usar energía: mientras la barra baja, el brazo del peso cambia, así que el torque cambia y alfa no es constante. Con energía no importa lo que pasa en el camino: solo comparamos el inicio con el final.`],
+loop(st,r){const c=st%4,u=Math.min(1,c/2.4);const a=90*(1-Math.cos(u*Math.PI/2));rot(r,'bp',a,260,260)}
+});
+
+S({title:'Solución 1: rotación en torno al pivote',
+html:`${svg(`
+${piv(200,250,0,9)}${beam(200,250,420,250,14,0)}${dot(310,250,0,7)}
+${piv(200,250,1,9)}<g data-b="1">${beam(200,250,200,470,14,null)}${dot(200,360,null,7)}</g>
+${ln(160,360,460,360,0,'ln2 dashl')}${lb(470,360,'h = 0',0,'acc','start')}
+${dim(470,250,470,360,'L/2',0)}
+`)}
+${bars3('bp1',560,170,'Horizontal',0)}
+${bars3('bp2',820,170,'Vertical',1)}
+${Q(560,560,'M g {{(L/2)}} = (1/6) M L^2 ω^2',3,'s')}
+${Q(560,630,`ω = √(3g/L)`,4,'s box')}`,
+beats:[
+`Primera forma de resolverlo: tratar todo como una rotación pura en torno al pivote. Ponemos el nivel cero de altura donde queda el centro de masa en la posición vertical, a L medios bajo el pivote. Al inicio, la barra está horizontal: el centro de masa está L medios más arriba. Su energía es solo potencial: M g L medios. No se mueve, así que no hay energía cinética.`,
+`Al final, la barra está vertical y su centro de masa está en altura cero. Toda la energía potencial se transformó en energía cinética.`,
+`Como la barra gira en torno al pivote fijo, toda su energía cinética es de rotación respecto del pivote: un medio de I pivote por omega cuadrado. Y I de una barra respecto de un extremo es un tercio M L cuadrado. Multiplicando: un sexto M L cuadrado omega cuadrado.`,
+`Conservación de la energía: no hay roce en el pivote, así que la energía inicial es igual a la final. M g L medios igual a un sexto M L cuadrado omega cuadrado.`,
+`Despejamos omega. Simplificamos M. Multiplicamos por 6 y dividimos por L cuadrado: omega cuadrado es 3 g sobre L. Omega es la raíz de 3 g sobre L.`],
+on(j,r){setB(r,'bp1',[0,.9,0],null,'U_g = M g L/2');setB(r,'bp2',j>=1?(j>=2?[.9,0,0]:[0,0,0]):[0,0,0],null,j>=2?'K_{rot} = (1/6) M L^2 ω^2':'')}
+});
+
+S({title:'Solución 2: rotación del CM más traslación del CM',
+html:`
+${N(90,165,1100,'Otra forma: el centro de masa se traslada (se mueve en un arco) y la barra gira en torno a su centro de masa.',0)}
+${Q(90,260,'K_{rot} = ½ {{(1/12)}} M L^2 ω^2 = (1/24) M L^2 ω^2',1,'s')}
+${Q(90,340,'v_{CM} = ω (L/2)',2,'s')}
+${Q(90,410,'K_{tras} = ½ M (ω L/2)^2 = (1/8) M L^2 ω^2',2,'s')}
+${Q(90,500,'K = (1/24 + 3/24) M L^2 ω^2 = (1/6) M L^2 ω^2',3,'s box')}
+${N(90,600,1100,'Lo mismo que antes, así que ω = √(3g/L). Las dos formas siempre coinciden: elige la más corta.',4,'acc')}`,
+beats:[
+`La clase lo resuelve también de otra manera, para mostrar que todo encaja. Separamos el movimiento en dos: el centro de masa se traslada, siguiendo un arco, y la barra gira en torno a su propio centro de masa.`,
+`La energía de rotación respecto del centro de masa: un medio de un doceavo M L cuadrado, por omega cuadrado. Da un veinticuatroavo de M L cuadrado omega cuadrado.`,
+`La energía de traslación: el centro de masa está a L medios del pivote, así que su rapidez es omega por L medios. Entonces un medio M por omega L medios al cuadrado: un octavo de M L cuadrado omega cuadrado.`,
+`Sumamos. Un octavo son tres veinticuatroavos. Uno más tres da cuatro veinticuatroavos, que es un sexto. Exactamente la misma energía cinética de la solución 1.`,
+`Por lo tanto, omega es la raíz de 3 g sobre L otra vez. Las dos formas siempre dan lo mismo. En el control, elige la que te parezca más corta.`]
+});
+
+/* ===================== CH13 RODAR POR UN PLANO ===================== */
+CH('La carrera y la polea con cajón','Clase 23 · Ejercicios 1 y 2','Capítulo trece: los dos ejercicios de la clase 23. Una carrera entre una bola, un disco y un aro, y una polea que gira con un cajón que cae.');
+
+const RC={x:110,y:250,L:540,a:20,r:22,ks:[.4,.5,1],cols:['A','C','B'],nm:['bola','disco','aro']};
+S({title:'Ejercicio 1: la bola, el disco y el aro',
+html:`${svg(RC.ks.map((k,i)=>{const y0=RC.y+i*120,x1=RC.x+RC.L*Math.cos(RC.a*RAD),y1=y0+RC.L*Math.sin(RC.a*RAD);
+  return `<g data-b="0"><line x1="${RC.x}" y1="${y0}" x2="${x1}" y2="${y1}" class="ln"/><line x1="${x1}" y1="${y1}" x2="${x1+40}" y2="${y1}" class="ln"/></g>
+  <g data-b="0"><g id="rc${i}" transform="translate(${RC.x},${y0-RC.r})"><circle cx="0" cy="0" r="${RC.r}" style="fill:#101016;stroke:var(--${RC.cols[i]});stroke-width:3.5"/><line x1="0" y1="0" x2="0" y2="${-RC.r}" style="stroke:var(--${RC.cols[i]});stroke-width:2.5"/></g></g>
+  ${lb(RC.x-12,y0-34,RC.nm[i],0,RC.cols[i],'start')}`}).join(''))}
+${N(760,160,460,'Una <b>bola</b>, un <b>disco</b> y un <b>aro</b>, cada uno de masa M y radio R, ruedan sin deslizar desde el reposo por un plano de altura h. ¿Con qué rapidez llegan abajo? ¿Cuál llega primero?',0)}
+${Q(760,370,'M g h = ½ I_{CM} ω^2 + ½ M v_{CM}^2',1,'xs')}
+${Q(760,440,`M g h = ½ (${fr('I_{CM}','R^2')} + M) v_{CM}^2`,2,'xs')}
+${Q(760,550,`v_{CM} = √(${fr('2gh','1 + I_{CM}/(M R^2)')})`,3,'s box')}`,
+beats:[
+`El ejercicio 1 de la clase 23. Una bola, un disco y un aro, todos con la misma masa M y el mismo radio R, ruedan sin deslizar por un plano inclinado de altura h. Parten del reposo arriba. ¿Con qué rapidez llega cada uno abajo, y cuál llega primero?`,
+`Energía. Arriba hay solo energía potencial, M g h. Abajo, toda se transformó en energía cinética: de rotación más de traslación. ¿Y el roce? Es roce estático: el punto de contacto no resbala, así que no hace trabajo, y la energía mecánica se conserva.`,
+`Usamos la condición de rodadura, omega igual a v sobre R, para dejar todo en función de v. La energía de rotación queda un medio de I sobre R cuadrado, por v cuadrado. Sacamos un medio v cuadrado de factor común.`,
+`Despejamos v: la raíz de 2 g h, dividido por 1 más I sobre M R cuadrado. Esa fórmula sirve para cualquier objeto que ruede. Solo hay que cambiar el número I sobre M R cuadrado.`],
+loop(st,r){const c=st%5.5;const a0=2*RC.L/(2.6*2.6)*(1.4);RC.ks.forEach((k,i)=>{const a=a0/(1+k);const s=Math.min(RC.L,.5*a*c*c);const y0=RC.y+i*120;const cx=RC.x+s*Math.cos(RC.a*RAD)+RC.r*Math.sin(RC.a*RAD),cy=y0+s*Math.sin(RC.a*RAD)-RC.r*Math.cos(RC.a*RAD);const e=r.querySelector('#rc'+i);if(e)e.setAttribute('transform',`translate(${cx.toFixed(1)},${cy.toFixed(1)}) rotate(${(s/RC.r*180/Math.PI).toFixed(1)})`)})}
+});
+
+S({title:'¿Quién llega primero?',
+html:`
+${tbl(90,170,[['bola: <i>I</i> = ⅖ <i>MR</i>²','v = √(2gh / 1,4) = √(1,43 g h)'],['disco: <i>I</i> = ½ <i>MR</i>²','v = √(2gh / 1,5) = √(1,33 g h)'],['aro: <i>I</i> = <i>MR</i>²','v = √(2gh / 2) = √(g h)']],0,1100)}
+${N(90,420,1100,'<b>Gana la bola</b>, después el disco y al final el aro. No depende de M ni de R: solo de cómo está repartida la masa.',1,'acc')}
+${N(90,530,1100,'El aro tiene toda su masa en el borde: se lleva más energía en <b>girar</b>, y le queda menos para <b>avanzar</b>.',2)}`,
+beats:[
+`Reemplazamos cada momento de inercia. La bola: I sobre M R cuadrado es dos quintos, o sea 0,4. El denominador es 1,4: v es la raíz de 1,43 g h. El disco: un medio, denominador 1,5: raíz de 1,33 g h. El aro: uno, denominador 2: raíz de g h.`,
+`La bola tiene la mayor rapidez abajo, y por eso también llega primero. Después el disco, y al final el aro. Y algo notable: el resultado no depende de la masa ni del radio. Una bola chica le gana a un aro gigante.`,
+`¿Por qué pierde el aro? Toda su masa está en el borde, así que su momento de inercia es el más grande. De la misma energía potencial, el aro gasta más en girar y le queda menos para avanzar.`]
+});
+
+const PC={c:[330,250],R:60,h:2.5};
+S({title:'Ejercicio 2: la polea y el cajón',
+html:`${svg(`
+${ceil(250,410,160,0)}${ln(330,160,330,250,0,'ln2')}
+${wheel(PC.c[0],PC.c[1],PC.R,0,'pc','acc')}
+<line id="pc_s" x1="${PC.c[0]+PC.R}" y1="${PC.c[1]}" x2="${PC.c[0]+PC.R}" y2="330" class="ln2" style="stroke:#cfcdd8;stroke-width:2.5" data-b="0"/>
+<g data-b="0"><g id="pc_b" transform="translate(${PC.c[0]+PC.R},330)">${cbox(-35,0,70,60,'B','m',null)}</g></g>
+${dim(470,330,470,590,'h = 2,5 m',1,410,460)}
+`)}
+${N(560,160,660,'Polea fija, <b>M = 1,0 kg</b> y <b>R = 25,0 cm</b>, masa uniforme (disco). El cajón de <b>m = 2,5 kg</b> cae desde el reposo desenrollando la cuerda.',0)}
+${bars3('pcb1',560,330,'Inicio',1,['K<sub>rot</sub>','U<sub>g</sub>','K<sub>tras</sub>'],'sm')}
+${bars3('pcb2',820,330,'Bajó h',2,['K<sub>rot</sub>','U<sub>g</sub>','K<sub>tras</sub>'],'sm')}
+${N(560,580,660,'Polea: K<sub>rot</sub>. Cajón: U<sub>g</sub> y K<sub>tras</sub>. Nivel cero en la posición final del cajón.',1)}`,
+beats:[
+`El ejercicio 2 de la clase 23. Una polea fija de masa 1,0 kilogramo y radio 25,0 centímetros, con su masa distribuida uniformemente, o sea un disco. Tiene enrollada una cuerda, y del extremo libre cuelga un cajón de 2,5 kilogramos. Se suelta desde el reposo, y el cajón cae desenrollando la cuerda y haciendo girar la polea.`,
+`Parte a: el diagrama de barras de energía. El sistema es la polea más el cajón. Ponemos el nivel cero de altura en la posición final del cajón. Al inicio, nada se mueve: solo hay energía potencial del cajón, m g h.`,
+`Cuando el cajón bajó h, ya no tiene energía potencial. Esa energía se repartió en dos: la energía cinética de traslación del cajón y la energía cinética de rotación de la polea. La polea no sube ni baja, así que su energía potencial no cambia y no la dibujamos.`],
+on(j,r){setB(r,'pcb1',j>=1?[0,.9,0]:[0,0,0],null,j>=1?'m g h':'');setB(r,'pcb2',j>=2?[.15,0,.75]:[0,0,0],null,j>=2?'K_{rot} + K_{tras}':'')},
+loop(st,r){const c=st%4,u=Math.min(1,c/3);const d=260*u*u;const e=r.querySelector('#pc_b');if(e)e.setAttribute('transform',`translate(${PC.c[0]+PC.R},${(330+d).toFixed(1)})`);const s=r.querySelector('#pc_s');if(s)s.setAttribute('y2',(330+d).toFixed(1));rot(r,'pc',(d/PC.R*180/Math.PI)%360,PC.c[0],PC.c[1])}
+});
+
+S({title:'La polea y el cajón: la rapidez',
+html:`
+${Q(90,165,'m g h = ½ m v^2 + ½ I ω^2',0,'s')}
+${Q(90,240,`I = ½ M R^2     ω = ${fr('v','R')}`,1,'s')}
+${Q(90,330,`½ I ω^2 = ½ · ½ M R^2 · ${fr('v^2','R^2')} = ¼ M v^2`,2,'s')}
+${Q(90,430,'m g h = ½ (m + M/2) v^2',3,'s')}
+${Q(90,520,`v = √(${fr('2 m g h','m + M/2')}) = √(${fr('2 · 2,5 · 10 · 2,5','3,0')})`,4,'s')}
+${Q(90,630,'v ≈ 6,45 [m/s]',5,'box')}
+${N(720,170,500,'R se cancela: no hacía falta.',2)}
+${N(720,520,500,'Con g = 9,8: v ≈ 6,39 m/s.',5)}
+${N(720,600,500,'De 62,5 J: el cajón se lleva 52,1 J y la polea 10,4 J.',6,'acc')}`,
+beats:[
+`Parte b: la ecuación de balance de energía. Lo que había al inicio es igual a lo que hay al final: m g h es igual a un medio m v cuadrado del cajón, más un medio I omega cuadrado de la polea.`,
+`La polea es un disco: I es un medio M R cuadrado. Y la cuerda no resbala: el borde de la polea se mueve igual que la cuerda y el cajón, así que omega es v sobre R.`,
+`La energía de la polea: un medio por un medio M R cuadrado por v cuadrado sobre R cuadrado. Las R se cancelan y queda un cuarto M v cuadrado. Por eso el radio de la polea no hacía falta.`,
+`La ecuación queda: m g h igual a un medio de m más M medios, por v cuadrado. Es como si el cajón arrastrara una masa extra de M medios.`,
+`Despejamos v: la raíz de 2 m g h dividido por m más M medios. Con números: 2 por 2,5 por 10 por 2,5, dividido por 2,5 más 0,5, que es 3,0.`,
+`Arriba da 125. Dividido por 3 da 41,7. La raíz: 6,45 metros por segundo. Si usas g igual a 9,8, da 6,39.`,
+`Y para revisar el reparto: al inicio había 2,5 por 10 por 2,5, o sea 62,5 joule. Al final, el cajón tiene un medio por 2,5 por 41,7: 52,1 joule. Y la polea un cuarto por 1 por 41,7: 10,4 joule. La suma da 62,5. Todo cuadra.`]
+});
+
+/* ===================== CH14 RESUMEN ===================== */
+CH('Resumen final','Todo el control','Capítulo final: las fórmulas, las recetas y los errores que más puntos cuestan. Guárdate esto para el viernes 13.');
+
+S({title:'Las fórmulas',
+html:`
+${tbl(90,160,[['torque','τ = r F sin θ = F d'],['equilibrio','ΣF = 0,  Στ = 0'],['dinámica','ΣF = M a_{CM},  Στ = I α'],['inercia','I = Σ m r^2,  I_O = I_{CM} + M d^2']],0,560)}
+${tbl(700,160,[['rodadura','v = R ω,  a = R α'],['cuerda en polea','a = R α'],['energía','K = ½ M v^2 + ½ I ω^2'],['I típicos','aro M R^2, disco ½ M R^2']],1,520)}
+${N(90,500,1100,'Pregunta por <b>fuerzas o aceleraciones</b>: Newton y torques. Pregunta por <b>velocidades</b>: energía.',2,'acc')}`,
+beats:[
+`Las fórmulas del control. El torque: r F seno theta, o fuerza por brazo de palanca. El equilibrio: suma de fuerzas cero y suma de torques cero. La dinámica: suma de fuerzas igual a M por la aceleración del centro de masa, y suma de torques igual a I alfa. Y el momento de inercia, con el teorema de ejes paralelos.`,
+`Para rodadura, la condición: v igual a R omega y a igual a R alfa. La misma condición vale para una cuerda que no resbala sobre una polea. Y la energía: traslación más rotación.`,
+`Y la regla para elegir herramienta: si te preguntan fuerzas o aceleraciones, usa Newton y torques. Si te preguntan velocidades, usa energía. Muchas veces se pueden usar las dos, como en la polea con cajón: con dinámica sale a igual a 8,33, y v cuadrado igual a 2 a h da el mismo 6,45.`]
+});
+
+S({title:'Los errores que más cuestan',
+html:`
+${LI(90,165,1,'<b>r parte en el eje</b>, y θ es el ángulo entre r y F, no con la horizontal.',0)}
+${LI(90,235,2,'Elige el punto de torques donde están las <b>incógnitas que no piden</b>.',1)}
+${LI(90,305,3,'Fuerzas verticales: el brazo es la <b>distancia horizontal</b> al eje.',2)}
+${LI(90,375,4,'Polea con masa: <b>T₁ ≠ T₂</b>. Hazle su propio DCLE.',3)}
+${LI(90,445,5,'<b>Signos coherentes</b>: a y α positivos en el mismo sentido del movimiento.',4)}
+${LI(90,515,6,'Usa el <b>I del eje correcto</b>. Si gira en un extremo, ejes paralelos.',5)}
+${LI(90,585,7,'En rodadura, el roce estático <b>no hace trabajo</b>: la energía se conserva.',6)}`,
+beats:[
+`Los errores que más puntos cuestan. Uno: el vector r siempre parte en el eje de giro. Y theta es el ángulo entre r y la fuerza, no el ángulo de la fuerza con la horizontal. Revisa eso en cada torque.`,
+`Dos: para los torques, elige el punto donde actúan las fuerzas que no conoces y no te preguntan, como la reacción de un pivote. Te ahorra muchas cuentas.`,
+`Tres: cuando las fuerzas son verticales, como los pesos, el brazo de palanca es la distancia horizontal al eje. En una viga inclinada eso es la distancia por coseno del ángulo.`,
+`Cuatro: si la polea tiene masa, las tensiones a cada lado son distintas. No las llames igual. La polea necesita su propio DCLE y su ecuación de torques.`,
+`Cinco: los signos. Si eliges positivo hacia donde se mueve el cuerpo, elige positivo el giro que corresponde a ese movimiento. Así a igual a R alfa no te cambia de signo.`,
+`Seis: usa el momento de inercia del eje correcto. Si la barra gira en un extremo, no es un doceavo, es un tercio. Para eso están los ejes paralelos.`,
+`Siete: en la rodadura sin deslizar el roce es estático y no hace trabajo, así que puedes usar conservación de la energía tranquilo.`]
+});
+
+S({noHdr:true,title:'Cierre',
+html:`
+<div class="hk" style="left:90px;top:230px" data-b="0">FIS111 · Control 5</div>
+<div class="hero" style="left:84px;top:270px;font-size:110px" data-b="0" data-d=".15">Listo.</div>
+${N(90,420,800,'Vuelve a los capítulos que te costaron, pausa antes de cada solución e intenta resolver cada ejercicio solo. Mucho éxito el viernes 13.',0)}`,
+beats:[
+`Eso es todo. Ya viste todo lo que vino después del control 4: torque, equilibrio, dinámica de rotación, rodadura y energía, con todos los ejercicios de las clases 19 a 23 y de la ayudantía 10. Vuelve a los capítulos que te costaron, pausa antes de cada solución e intenta resolver cada ejercicio tú solo. Mucho éxito el viernes 13.`]
+});
+</script>
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const stage=$('#stage'),frame=$('#frame'),player=$('#player'),bar=$('#bar'),fill=bar.querySelector('.fill'),knob=bar.querySelector('.knob'),tip=$('#tip');
+const big=$('#big'),bPlay=$('#bPlay'),icPlay=$('#icPlay'),bVoice=$('#bVoice'),bSpeed=$('#bSpeed'),bFs=$('#bFs'),ctl=$('#ctl'),cap=$('#cap');
+const KEY='fis111-c5-pos-v1';
+let BE=[],TOTAL=0,g=0,t=0,playing=false,speed=1,voice=false,vDone=true,cur=null,curRoot=null,started=false,dragging=false,vTimer=null,sayTok=null,lastSave=0;
+const SPEEDS=[.75,1,1.25,1.5,2];
+
+/* timeline */
+SC.forEach(s=>{s.start=TOTAL;s.beats.forEach((txt,j)=>{const w=txt.split(/\s+/).length;const d=Math.max(4.5,w*.37+1.6);BE.push({s:s.i,j,txt,d,st:TOTAL});TOTAL+=d});s.end=TOTAL});
+CHS.forEach(c=>c.start=c.scenes[0].start);
+const fmt=s=>{s=Math.max(0,Math.floor(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=String(s%60).padStart(2,'0');return h?`${h}:${String(m).padStart(2,'0')}:${x}`:`${m}:${x}`};
+$('#dur').textContent=`${CHS.length-1} capítulos · ${BE.length} pasos · ${fmt(TOTAL)}`;
+CHS.forEach(c=>{if(c.start>0){const k=document.createElement('div');k.className='tick';k.style.left=(c.start/TOTAL*100)+'%';bar.appendChild(k)}});
+const chBox=$('#chs');
+CHS.forEach(c=>{const b=document.createElement('button');b.innerHTML=`<span class="n">${String(c.i).padStart(2,'0')}<br>${fmt(c.start)}</span><span><span class="t">${c.title}</span><span class="s">${c.sub}</span></span>`;b.onclick=()=>{go(idxAt(c.start+.01),0);if(!started)play();player.scrollIntoView({behavior:'smooth',block:'start'})};c.btn=b;chBox.appendChild(b)});
+function idxAt(T){let lo=0,hi=BE.length-1;while(lo<hi){const m=(lo+hi+1)>>1;if(BE[m].st<=T)lo=m;else hi=m-1}return lo}
+
+/* scenes */
+function hdr(sc){return `<div class="hdr"><div class="tag">${sc.ch.sub} · ${sc.ch.title}</div><h2>${sc.title}</h2></div>`}
+function card(c){return `<div class="card"><div class="cnum" data-b="0">${String(c.i).padStart(2,'0')}</div><div class="csub" data-b="0" data-d=".15">${c.sub}</div><div class="cttl" data-b="0" data-d=".3"${c.title.length>17?' style="font-size:62px"':''}>${c.title}</div>${svg(ln(146,520,1140,520,{b:0,d:.4},'ln','stroke:var(--acc);stroke-width:2'))}</div>`}
+function mount(sc){
+  const old=curRoot;if(old){old.classList.add('out');setTimeout(()=>old.remove(),1100)}
+  const r=document.createElement('div');r.className='scene pre';
+  r.innerHTML=sc.card?card(sc.ch):((sc.noHdr?'':hdr(sc))+sc.html);
+  stage.appendChild(r);r._j=-1;cur=sc;curRoot=r;r.getBoundingClientRect();
+  requestAnimationFrame(()=>r.classList.remove('pre'));
+}
+function apply(j,mnt){
+  const r=curRoot,sc=cur;let k=0;
+  r.querySelectorAll('[data-b]').forEach(el=>{const b=+el.dataset.b,want=b<=j,has=el.classList.contains('vis');
+    if(want&&!has){const d=(mnt?.35:.05)+(+el.dataset.d||0)+(b===j?Math.min(k++,8)*.12:0);el.style.transitionDelay=d.toFixed(2)+'s';el._p=true}
+    else if(!want){el._p=false;if(has){el.style.transitionDelay='0s';el.classList.remove('vis')}}});
+  r._j=j;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{r.querySelectorAll('[data-b]').forEach(el=>{if(el._p&&+el.dataset.b<=r._j){el.classList.add('vis');el._p=false}})}));
+  r.querySelectorAll('[data-x]').forEach(el=>el.classList.toggle('gone',j>=+el.dataset.x));
+  r.querySelectorAll('[data-hl]').forEach(el=>el.classList.toggle('hl',el.dataset.hl.split(',').map(Number).includes(j)));
+  if(sc.on){try{sc.on(j,r,mnt)}catch(e){console.error(e)}}
+}
+function go(i,tt=0,o={}){
+  i=Math.max(0,Math.min(BE.length-1,i));const b=BE[i],sc=SC[b.s];let m=false;
+  if(cur!==sc){mount(sc);m=true}
+  const same=!m&&i===g&&curRoot._j===b.j;
+  g=i;t=tt;if(!same)apply(b.j,m);
+  $('#capTag').textContent=sc.ch.title+(sc.card?'':' · '+sc.title);
+  $('#capTx').textContent=b.txt;
+  $('#chName').textContent=sc.ch.title;
+  CHS.forEach(c=>c.btn.classList.toggle('on',c===sc.ch));
+  if(playing&&voice&&o.speak!==false)say(b.txt);
+  ui();
+}
+
+/* voice */
+let esVoice=null;const hasTTS='speechSynthesis' in window;
+function pickVoice(){if(!hasTTS)return;const vs=speechSynthesis.getVoices();esVoice=vs.find(v=>/^es[-_](CL|419|MX|US|AR|CO)/i.test(v.lang))||vs.find(v=>/^es[-_]ES/i.test(v.lang))||vs.find(v=>/^es/i.test(v.lang))||null}
+if(hasTTS){pickVoice();try{speechSynthesis.addEventListener('voiceschanged',pickVoice)}catch(e){}}else{bVoice.disabled=true;bVoice.title='Tu navegador no tiene síntesis de voz'}
+function say(txt){
+  if(!hasTTS){vDone=true;return}
+  try{speechSynthesis.cancel()}catch(e){}
+  vDone=false;const tok={};sayTok=tok;
+  const parts=(txt.match(/[^.!?]+[.!?]*/g)||[txt]).map(p=>p.trim()).filter(Boolean);
+  parts.forEach((p,k)=>{const u=new SpeechSynthesisUtterance(p);u.lang=esVoice?esVoice.lang:'es-ES';if(esVoice)u.voice=esVoice;u.rate=Math.min(2,speed*1.05);
+    if(k===parts.length-1)u.onend=()=>{if(sayTok===tok)vDone=true};u.onerror=()=>{if(sayTok===tok)vDone=true};
+    try{speechSynthesis.speak(u)}catch(e){vDone=true}});
+  clearTimeout(vTimer);vTimer=setTimeout(()=>{if(sayTok===tok)vDone=true},(BE[g].d/speed)*1600+3000);
+}
+function hush(){if(hasTTS){sayTok=null;try{speechSynthesis.cancel()}catch(e){}}vDone=true}
+
+/* transport */
+function play(){if(!started){started=true;big.hidden=true;$('#resume').hidden=true}
+  if(g===BE.length-1&&t>=BE[g].d-.05)go(0,0,{speak:false});
+  playing=true;if(voice)say(BE[g].txt);ui()}
+function pause(){playing=false;hush();ui()}
+function next(){go(g+1,0)}
+function prev(){if(t>2.5)go(g,0);else go(g-1,0)}
+function ui(){icPlay.setAttribute('d',playing?'M6 5h4v14H6zM14 5h4v14h-4z':'M7 4.5v15l12-7.5z');bPlay.setAttribute('aria-label',playing?'Pausar':'Reproducir')}
+bPlay.onclick=()=>playing?pause():play();big.onclick=play;
+$('#bNext').onclick=next;$('#bPrev').onclick=prev;
+bSpeed.onclick=()=>{speed=SPEEDS[(SPEEDS.indexOf(speed)+1)%SPEEDS.length];bSpeed.textContent=speed+'×';if(playing&&voice)say(BE[g].txt)};
+bVoice.onclick=()=>{voice=!voice;bVoice.setAttribute('aria-pressed',voice);bVoice.textContent='Voz: '+(voice?'sí':'no');if(voice){pickVoice();if(playing)say(BE[g].txt)}else hush()};
+bFs.onclick=()=>{if(document.fullscreenElement){document.exitFullscreen&&document.exitFullscreen().catch(()=>{})}else if(player.requestFullscreen){player.requestFullscreen().catch(()=>{})}};
+document.addEventListener('fullscreenchange',()=>setTimeout(fit,50));
+document.addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,textarea'))return;
+  if(e.code==='Space'||e.key==='k'){e.preventDefault();playing?pause():play()}
+  else if(e.key==='ArrowRight'){e.preventDefault();next()}
+  else if(e.key==='ArrowLeft'){e.preventDefault();prev()}
+  else if(e.key==='f'||e.key==='F'){bFs.click()}});
+
+/* seek bar */
+function TatX(x){const r=bar.getBoundingClientRect();return Math.max(0,Math.min(1,(x-r.left)/r.width))*TOTAL}
+function seekT(T){const i=idxAt(T);go(i,Math.min(T-BE[i].st,BE[i].d-.05),{speak:false})}
+bar.addEventListener('pointerdown',e=>{dragging=true;try{bar.setPointerCapture(e.pointerId)}catch(_){};seekT(TatX(e.clientX))});
+bar.addEventListener('pointermove',e=>{const T=TatX(e.clientX);if(dragging)seekT(T);let c=CHS[0];CHS.forEach(h=>{if(h.start<=T)c=h});tip.hidden=false;tip.textContent=fmt(T)+' · '+c.title;const r=bar.getBoundingClientRect();tip.style.left=Math.max(70,Math.min(r.width-70,e.clientX-r.left))+'px'});
+bar.addEventListener('pointerup',()=>{if(dragging){dragging=false;if(playing&&voice)say(BE[g].txt)}});
+bar.addEventListener('pointerleave',()=>{tip.hidden=true});
+
+/* resume */
+let saved=0;try{saved=+localStorage.getItem(KEY)||0}catch(e){}
+if(saved>20&&saved<TOTAL-10){$('#resume').hidden=false;$('#bRes').textContent='Continuar en '+fmt(saved);
+  $('#bRes').onclick=()=>{seekT(saved);play()};$('#bRes0').onclick=()=>{seekT(0);play()}}
+
+/* fit */
+function fit(){const fs=document.fullscreenElement===player;
+  if(fs){const W=window.innerWidth,H=window.innerHeight-ctl.offsetHeight-cap.offsetHeight;frame.style.width=Math.min(W,H*16/9)+'px'}else frame.style.width='';
+  stage.style.transform=`scale(${frame.clientWidth/1280})`}
+try{new ResizeObserver(fit).observe(frame)}catch(e){window.addEventListener('resize',fit)}
+fit();
+
+/* loop */
+let last=performance.now();
+function loop(now){const dt=Math.min(.1,(now-last)/1000);last=now;
+  if(playing&&!dragging){const b=BE[g];t+=dt*speed;
+    if(voice){if(vDone&&t>=1.2){if(g<BE.length-1)go(g+1,0);else pause()}else if(t>b.d)t=b.d-.001}
+    else if(t>=b.d){if(g<BE.length-1)go(g+1,t-b.d);else{t=b.d;pause()}}
+    if(now-lastSave>2500){lastSave=now;try{localStorage.setItem(KEY,String(BE[g].st+t))}catch(e){}}}
+  const b=BE[g],sc=SC[b.s];
+  if(sc.loop&&curRoot&&cur===sc){try{sc.loop(b.st-sc.start+t,curRoot,b.j,t)}catch(e){}}
+  const T=b.st+Math.min(t,b.d),p=T/TOTAL*100;fill.style.width=p+'%';knob.style.left=p+'%';
+  bar.setAttribute('aria-valuenow',Math.round(T));bar.setAttribute('aria-valuemax',Math.round(TOTAL));
+  $('#time').textContent=fmt(T)+' / '+fmt(TOTAL);
+  requestAnimationFrame(loop)}
+go(0,0,{speak:false});requestAnimationFrame(loop);
+})();
+</script>
+
+
+</body></html>
